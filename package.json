@@ -1,0 +1,73 @@
+{
+  "name": "@assinafy/twenty-app",
+  "version": "1.0.0",
+  "description": "Envie PDFs e modelos para assinatura eletrônica com a Assinafy e acompanhe cada assinatura pelo Twenty.",
+  "license": "MIT",
+  "author": "Assinafy",
+  "homepage": "https://github.com/assinafy/twenty-crm-app#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assinafy/twenty-crm-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/assinafy/twenty-crm-app/issues"
+  },
+  "engines": {
+    "node": "^24.5.0",
+    "npm": "please-use-yarn",
+    "yarn": ">=4.0.2",
+    "twenty": ">=2.42.0"
+  },
+  "keywords": [
+    "twenty-app",
+    "assinafy",
+    "electronic-signature",
+    "e-signature",
+    "digital-signature",
+    "assinatura-eletronica",
+    "assinatura-digital",
+    "crm"
+  ],
+  "packageManager": "yarn@4.18.1",
+  "frontComponentSharedDependencies": [
+    "react",
+    "react-dom/client",
+    "twenty-ui/components",
+    "twenty-ui/primitives/accessibility",
+    "twenty-ui/primitives/data-display",
+    "twenty-ui/primitives/feedback",
+    "twenty-ui/primitives/input"
+  ],
+  "scripts": {
+    "twenty": "twenty",
+    "build": "twenty dev:build",
+    "lint": "oxlint -c .oxlintrc.json --deny-warnings .",
+    "lint:fix": "oxlint -c .oxlintrc.json --fix .",
+    "typecheck": "tsc --noEmit -p tsconfig.spec.json",
+    "test": "vitest run --config vitest.unit.config.mts",
+    "test:watch": "vitest --config vitest.unit.config.mts",
+    "test:coverage": "vitest run --config vitest.unit.config.mts --coverage",
+    "test:live": "vitest run --config vitest.live.config.mts",
+    "test:e2e": "vitest run --config vitest.e2e.config.mts",
+    "verify": "yarn lint && yarn check:emails && yarn test:coverage && yarn typecheck && yarn build",
+    "test:integration": "vitest run",
+    "check:emails": "node scripts/check-no-real-emails.mjs"
+  },
+  "dependencies": {
+    "@assinafy/sdk": "2.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.3.0",
+    "@vitest/coverage-v8": "^5.0.1",
+    "oxlint": "^1.85.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "twenty-client-sdk": "2.42.0",
+    "twenty-sdk": "2.42.0",
+    "twenty-ui": "2.42.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

@@ -1,0 +1,26 @@
+# Publishes the app to npm with provenance (npm trusted publishing) after the full CI suite passes.
+#
+# One-time setup: on npmjs.com open the package > Settings > Trusted Publisher and register this
+# repository with this workflow file (publish.yml). Provenance must point to a public GitHub
+# repository to claim the app in the Twenty marketplace ("Claim with GitHub").
+name: Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  # The CI job publishes after its checks pass: the build it publishes typechecks against the client that the
+  # integration sync generates, which a separate job would not have.
+  ci:
+    # id-token signs the npm provenance and authenticates the trusted publisher; contents reads the repository.
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/ci.yml
+    with:
+      publish: true
