@@ -1,0 +1,33 @@
+# Keeps the SHA-pinned actions and the npm dependencies current. Every pull request runs the full CI suite.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    # New releases wait a week before a pull request, so a compromised release is usually caught first.
+    cooldown:
+      default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # New releases wait a week before a pull request, so a compromised release is usually caught first.
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 5
+    groups:
+      # twenty-sdk, twenty-client-sdk and twenty-ui are released together and must stay on the same version.
+      twenty:
+        patterns:
+          - 'twenty-*'
+      dev-dependencies:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch

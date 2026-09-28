@@ -2,7 +2,8 @@
 #
 # One-time setup: on npmjs.com open the package > Settings > Trusted Publisher and register this
 # repository with this workflow file (publish.yml). Provenance must point to a public GitHub
-# repository to claim the app in the Twenty marketplace ("Claim with GitHub").
+# repository to claim the app in the Twenty marketplace ("Claim with GitHub"). The `release`
+# environment only accepts `v*` tags.
 name: Publish
 
 on:
@@ -13,14 +14,61 @@ on:
 
 permissions: {}
 
+# Releases never run in parallel or cancel each other.
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 jobs:
-  # The CI job publishes after its checks pass: the build it publishes typechecks against the client that the
-  # integration sync generates, which a separate job would not have.
   ci:
-    # id-token signs the npm provenance and authenticates the trusted publisher; contents reads the repository.
     permissions:
       contents: read
-      id-token: write
     uses: ./.github/workflows/ci.yml
-    with:
-      publish: true
+
+  publish:
+    name: Publish to npm
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: release
+    # Only this job receives an OIDC token.
+    permissions:
+      contents: read
+      id-token: write # npm trusted publishing and provenance
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check the tag matches package.json and is on main
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" != tag ] || [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Publish only from a tag named v<package.json version>."
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::The tagged commit must be on main."
+            exit 1
+          fi
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      # No dependency cache, so a poisoned cache cannot reach the release build. Trusted publishing needs npm 11.5.1 or
+      # later, which Node.js 24.5 and later bundle (.nvmrc resolves to the newest 24.x).
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Builds the app and runs `npm publish --access public --provenance` on the output.
+      - name: Publish to npm
+        run: yarn twenty app:publish

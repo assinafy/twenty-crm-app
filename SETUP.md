@@ -217,15 +217,12 @@ These need a remote added by signing in; Twenty refuses API-key remotes. Lifecyc
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests, weekly (Monday 06:00 UTC) and when called by the publish workflow (`workflow_call`, with the boolean input `publish`). Its single `verify` job:
+`.github/workflows/ci.yml` runs on pushes to `main`, on pull requests, weekly (Monday 06:00 UTC) and when the publish workflow calls it (`workflow_call`). Every job installs with `yarn install --immutable`, pins its actions to a commit SHA, gets a read-only `GITHUB_TOKEN` and no OIDC token, and does not keep the token in the checkout. A newer push cancels a pull request's running CI; runs on `main` and release runs always finish. Its two jobs run in parallel:
 
-1. spawns a Twenty test instance with `twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test` (image `v2.42.6`; the weekly run uses `latest` to catch platform changes early);
-2. only when called with `publish: true`: fails unless the run is for a tag named `v<package.json version>`, before the dependencies are installed;
-3. installs with `yarn install --immutable`;
-4. runs `yarn lint`, `yarn check:emails` and `yarn test:coverage`;
-5. runs `yarn test:integration` against the spawned instance, which also syncs the app and generates the typed client;
-6. runs `yarn typecheck` and `yarn build`;
-7. only when called with `publish: true`: upgrades npm (trusted publishing needs 11.5.1 or later) and runs `yarn twenty app:publish`, which builds the package and publishes it with provenance. It runs in this job because its typecheck needs the client the integration sync generated.
+1. **Lint, unit tests and build** (no Twenty instance, so it reports in a few minutes): `yarn lint`, `yarn check:emails`, `yarn test:coverage`, then `yarn typecheck` and `yarn build` against the uninstalled Twenty client.
+2. **Integration tests**: spawns a Twenty test instance with `twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test` (image `v2.42.6`; the weekly run uses `latest` to catch platform changes early), runs `yarn test:integration` against it, which also syncs the app and generates the typed client, then runs `yarn typecheck` again against the generated client.
+
+No job uses Assinafy credentials: the live and end-to-end suites stay local. `.github/dependabot.yml` opens weekly pull requests for the pinned actions and the npm dependencies.
 
 ## Publishing
 
@@ -235,9 +232,12 @@ The app is published to npm as `@assinafy/twenty-app` and listed in the Twenty m
 2. Add the release to CHANGELOG.md.
 3. Run `yarn test:integration` against a test instance (it syncs the app and generates the typed client), then `yarn verify`.
 4. Tag the commit `vX.Y.Z` (matching `package.json`) and push the tag.
-5. `.github/workflows/publish.yml` calls `ci.yml` with `publish: true`, so the full CI suite, the tag check and the npm publish (with provenance) run in one job. It can also be started by hand from the Actions tab, on the release tag; a run on a branch fails the tag check.
+5. `.github/workflows/publish.yml` runs the full CI suite (it calls `ci.yml`), then its `publish` job, the only job with an OIDC token (`id-token: write`), runs in the `release` environment. It fails unless the run is for a tag named `v<package.json version>` on a commit of `main`, installs without the dependency cache and runs `yarn twenty app:publish`, which builds the package and runs `npm publish --access public --provenance` on the output. Releases never run in parallel. The workflow can also be started by hand from the Actions tab, on the release tag; a run on a branch fails the tag check.
 
-One-time setup: on npmjs.com, open the package → Settings → Trusted Publisher and register this repository with the `publish.yml` workflow. npm accepts provenance only from a **public** GitHub repository, and provenance is what lets the app be claimed in Twenty.
+One-time setup:
+
+- On npmjs.com, open the package → Settings → Trusted Publisher and register this repository with the `publish.yml` workflow (`npm trust github @assinafy/twenty-app --repo assinafy/twenty-crm-app --file publish.yml --allow-publish`). No npm token is stored in GitHub. npm accepts provenance only from a **public** GitHub repository, and provenance is what lets the app be claimed in Twenty.
+- In the repository settings, the `release` environment accepts deployments only from `v*` tags.
 
 After the first publish:
 

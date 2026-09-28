@@ -8,12 +8,7 @@ on:
   schedule:
     # Weekly run against the newest Twenty image to catch platform changes early.
     - cron: '0 6 * * 1'
-  workflow_call:
-    inputs:
-      publish:
-        description: Publish the app to npm after every check passes.
-        type: boolean
-        default: false
+  workflow_call: {}
 
 permissions:
   contents: read
@@ -24,26 +19,17 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  verify:
+  # Needs no Twenty instance, so lint and unit failures report in a few minutes. The typecheck and build run against
+  # the uninstalled Twenty client, like `yarn twenty app:publish` in the publish workflow.
+  checks:
+    name: Lint, unit tests and build
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    # id-token lets `app:publish` sign npm provenance; it is used only when the publish workflow calls this one.
-    permissions:
-      contents: read
-      id-token: write
-    env:
-      TWENTY_VERSION: ${{ github.event_name == 'schedule' && 'latest' || 'v2.42.6' }}
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
-      - name: Spawn Twenty test instance
-        id: twenty
-        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@d30e511e06007756f4e289bb7fbc10d9ee5371ea # main, 2026-09-25
-        with:
-          twenty-version: ${{ env.TWENTY_VERSION }}
 
       - name: Enable Corepack
         run: corepack enable
@@ -52,18 +38,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: '.nvmrc'
-          registry-url: ${{ inputs.publish && 'https://registry.npmjs.org' || '' }}
-          # No dependency cache when publishing, so a poisoned cache cannot reach the release build.
-          cache: ${{ !inputs.publish && 'yarn' || '' }}
-
-      # Fails before the suite runs, so a manual run from a branch can never publish.
-      - name: Check the tag matches package.json
-        if: inputs.publish
-        run: |
-          if [ "${GITHUB_REF_TYPE}" != tag ] || [ "v$(node -p "require('./package.json').version")" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::Publish only from a tag named v<package.json version>."
-            exit 1
-          fi
+          cache: yarn
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -77,22 +52,49 @@ jobs:
       - name: Unit tests with coverage
         run: yarn test:coverage
 
-      # Syncs the app to the test instance, which also generates the typed API client used by the typecheck.
-      - name: Integration tests
-        run: yarn test:integration
-        env:
-          TWENTY_API_URL: ${{ steps.twenty.outputs.server-url }}
-          TWENTY_API_KEY: ${{ steps.twenty.outputs.api-key }}
-
       - name: Typecheck
         run: yarn typecheck
 
       - name: Build
         run: yarn build
 
-      # Publishing runs in this job because `app:publish` typechecks against the client the integration sync generated.
-      # Trusted publishing needs npm 11.5.1 or later, which Node.js 24.5 and later bundle (.nvmrc resolves to the newest 24.x).
-      # `app:publish` adds --provenance because the id-token permission exposes ACTIONS_ID_TOKEN_REQUEST_URL.
-      - name: Publish to npm
-        if: inputs.publish
-        run: yarn twenty app:publish
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TWENTY_VERSION: ${{ github.event_name == 'schedule' && 'latest' || 'v2.42.6' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Spawn Twenty test instance
+        id: twenty
+        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@1e14eecba3a8ad8c72bb09da74f7c95d21f4cf04 # twenty/v2.42.6
+        with:
+          twenty-version: ${{ env.TWENTY_VERSION }}
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Syncs the app to the test instance, which also generates the typed API client.
+      - name: Integration tests
+        run: yarn test:integration
+        env:
+          TWENTY_API_URL: ${{ steps.twenty.outputs.server-url }}
+          TWENTY_API_KEY: ${{ steps.twenty.outputs.api-key }}
+
+      # The generated client adds checks the uninstalled one cannot make.
+      - name: Typecheck against the generated client
+        run: yarn typecheck
