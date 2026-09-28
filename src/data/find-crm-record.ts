@@ -4,6 +4,23 @@ import { PERSON_CONTACT_SELECTION } from 'src/data/person-contact-selection';
 import { readPermitted } from 'src/data/read-permitted';
 import { toPersonName } from 'src/data/to-person-name';
 import { type CrmRecord } from 'src/types/crm-record';
+import { type RecordConnection } from 'src/types/record-connection';
+
+// Every field any query below selects; each query selects a subset.
+type CrmRecordResult = {
+  people?: RecordConnection<{
+    id: string;
+    name?: Parameters<typeof toPersonName>[0];
+    companyId?: string | null;
+  }> | null;
+  companies?: RecordConnection<{ id: string; name?: string | null }> | null;
+  opportunities?: RecordConnection<{
+    id: string;
+    name?: string | null;
+    pointOfContactId?: string | null;
+    companyId?: string | null;
+  }> | null;
+};
 
 const toPerson = (person: { id: string; name?: Parameters<typeof toPersonName>[0] }, companyId: string | null) => ({
   objectNameSingular: 'person' as const,
@@ -31,7 +48,7 @@ const toOpportunity = (
 // readable) and each link on its own: a hidden link is left empty instead of hiding the record.
 export const findCrmRecord = async (core: CoreApiClient, recordId: string): Promise<CrmRecord | null> => {
   const args = { filter: { id: { eq: recordId } }, first: 1 };
-  const { people, companies, opportunities } = await readPermitted(() =>
+  const { people, companies, opportunities }: CrmRecordResult = await readPermitted(() =>
     core.query({
       people: { __args: args, edges: { node: { id: true, name: PERSON_CONTACT_SELECTION.name, companyId: true } } },
       companies: { __args: args, edges: { node: { id: true, name: true } } },
@@ -62,12 +79,12 @@ export const findCrmRecord = async (core: CoreApiClient, recordId: string): Prom
   }
 
   if (!people) {
-    const { people: named } = await readPermitted(() =>
+    const { people: named }: CrmRecordResult = await readPermitted(() =>
       core.query({ people: { __args: args, edges: { node: { id: true, name: PERSON_CONTACT_SELECTION.name } } } }),
     );
     const namedPerson = named?.edges[0]?.node;
     if (namedPerson) {
-      const { people: linked } = await readPermitted(() =>
+      const { people: linked }: CrmRecordResult = await readPermitted(() =>
         core.query({ people: { __args: args, edges: { node: { id: true, companyId: true } } } }),
       );
       return toPerson(namedPerson, linked?.edges[0]?.node.companyId ?? null);
@@ -75,16 +92,16 @@ export const findCrmRecord = async (core: CoreApiClient, recordId: string): Prom
   }
 
   if (!opportunities) {
-    const { opportunities: named } = await readPermitted(() =>
+    const { opportunities: named }: CrmRecordResult = await readPermitted(() =>
       core.query({ opportunities: { __args: args, edges: { node: { id: true, name: true } } } }),
     );
     const namedOpportunity = named?.edges[0]?.node;
     if (namedOpportunity) {
       const [{ opportunities: contact }, { opportunities: linkedCompany }] = await Promise.all([
-        readPermitted(() =>
+        readPermitted<CrmRecordResult>(() =>
           core.query({ opportunities: { __args: args, edges: { node: { id: true, pointOfContactId: true } } } }),
         ),
-        readPermitted(() =>
+        readPermitted<CrmRecordResult>(() =>
           core.query({ opportunities: { __args: args, edges: { node: { id: true, companyId: true } } } }),
         ),
       ]);

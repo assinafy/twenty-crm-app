@@ -3,6 +3,12 @@ import { type CoreApiClient } from 'twenty-client-sdk/core';
 import { ATTACHMENT_TARGET_FIELD } from 'src/data/attachment-target-field';
 import { readPermitted } from 'src/data/read-permitted';
 import { type CrmRecord } from 'src/types/crm-record';
+import { type RecordConnection } from 'src/types/record-connection';
+
+type AttachmentNode = {
+  name?: string | null;
+  file?: Array<{ label: string; url?: string | null } | null | undefined> | null;
+};
 
 // Null unless the member may read the attachment, it belongs to the record and has a downloadable file.
 export const findAttachmentFile = async (
@@ -10,7 +16,7 @@ export const findAttachmentFile = async (
   record: CrmRecord,
   attachmentId: string,
 ): Promise<{ name: string; url: string } | null> => {
-  const { attachments } = await readPermitted(() =>
+  const { attachments }: { attachments?: RecordConnection<AttachmentNode> | null } = await readPermitted(() =>
     core.query({
       attachments: {
         __args: {

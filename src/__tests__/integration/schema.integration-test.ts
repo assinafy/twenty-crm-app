@@ -18,6 +18,7 @@ import {
   OPPORTUNITY_ASSINAFY_DOCUMENTS_FIELD_UNIVERSAL_IDENTIFIER,
   PERSON_ASSINAFY_DOCUMENTS_FIELD_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
+import { type RecordConnection } from 'src/types/record-connection';
 
 const NOT_WRITABLE = (field: string) => new RegExp(`field "${field}" on "assinafyDocument" is not writable through the API`);
 
@@ -196,7 +197,7 @@ it('reads unset TEXT fields back as empty strings', async () => {
 
   expect(created).toMatchObject({ assinafyDocumentId: '', assinafyAccountId: '', requestId: '', lastError: '', sentAt: null });
 
-  const { assinafyDocuments } = await core.query({
+  const { assinafyDocuments }: { assinafyDocuments?: RecordConnection<{ id: string }> | null } = await core.query({
     assinafyDocuments: {
       __args: { filter: { id: { eq: created!.id }, assinafyDocumentId: { is: 'NULL' } } },
       edges: { node: { id: true } },

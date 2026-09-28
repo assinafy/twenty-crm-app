@@ -24,6 +24,7 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 ### Toolchain and code layout
 
 - Node.js 24 LTS, Yarn 4.18 through Corepack (`yarn install --immutable`), TypeScript in strict mode, `twenty-sdk`, `twenty-client-sdk` and `twenty-ui` 2.42.0, `@assinafy/sdk` 2.4.2, vitest and oxlint. Do not add a dependency for what a few lines or an installed package already do.
+- Never import the generated `CoreSchema` types: declare the shapes a query needs (shared ones in `src/types/`) and assign the query result to them (`const { people }: { people?: RecordConnection<…> | null } = await core.query(…)`), never cast it, so the code typechecks against both the fresh-install stub and the generated client.
 - One export per file: one entity (`define*` default export), function, component, class or type. Constants files in `src/constants/` group related constants. Keep the folder responsibilities and file suffixes of Architecture → Folders (`*.object.ts`, `*.logic-function.ts`, `*.handler.ts`, `*.service.ts`, `*.util.ts`, `*.front-component.tsx`, …), and import through the `src/` path alias.
 - Reuse what exists: the strict parsers and readers in `src/utils/`, `validateSigners` (shared by the front end and the server), `toAppError`, `toAppResult`, `AppFailure`, the credential resolvers in `src/assinafy-client/` and the record mappers in `src/data/`. Check every caller before changing a shared function.
 - Universal identifiers are UUID v4 values in `src/constants/universal-identifiers.ts`. Never change or reuse one; scaffold new entities with `yarn twenty dev:add` or generate a fresh UUID v4.
@@ -98,7 +99,7 @@ Register the development server as a remote once with `yarn twenty remote:add --
 yarn twenty apply
 ```
 
-`apply` shows the metadata plan, applies it to the default remote and regenerates the typed API client in `node_modules/twenty-client-sdk` from the synced schema. The custom object `assinafyDocument` only exists in that generated client, so run `yarn twenty apply` before `yarn typecheck`; otherwise every query on Assinafy documents fails to typecheck. `yarn twenty plan` previews the changes without applying them.
+`apply` shows the metadata plan, applies it to the default remote and regenerates the typed API client in `node_modules/twenty-client-sdk` from the synced schema. `yarn typecheck` also passes on a fresh install, where `twenty-client-sdk` ships an untyped stub: `src/data/` never imports the generated `CoreSchema` types, declares the result, filter and order-by shapes it uses (`src/types/record-connection.ts`, `src/types/assinafy-document-filter.ts`, …) and assigns each query result to such a type instead of casting it. After `apply`, the generated client checks every query, its arguments and its result against the synced schema, so run `yarn twenty apply` before `yarn typecheck` for the full check. `yarn twenty plan` previews the changes without applying them.
 
 Use `apply` for every sync. Do not leave `yarn twenty dev` (watch mode) running while you or a tool runs other syncs, and never run two of these at the same time: `apply`, `yarn test:integration`, `yarn test:e2e` and `yarn twenty dev:generate-client` rewrite the generated client, and `apply` and `yarn build` both rewrite `.twenty/output` (`yarn build` also typechecks against the generated client).
 
@@ -121,7 +122,7 @@ yarn twenty apply
 | --- | --- |
 | `yarn lint` | oxlint with `--deny-warnings` over the repository. |
 | `yarn lint:fix` | oxlint with automatic fixes. |
-| `yarn typecheck` | `tsc --noEmit -p tsconfig.spec.json` (sources, tests and config files). Run after `yarn twenty apply`. |
+| `yarn typecheck` | `tsc --noEmit -p tsconfig.spec.json` (sources, tests and config files). Passes against the stub client of a fresh install; run it after `yarn twenty apply` to also check queries against the generated client. |
 | `yarn test` | Unit tests (`src/**/__tests__/**/*.test.ts`). No server or network needed. |
 | `yarn test:watch` | Unit tests in watch mode. |
 | `yarn test:coverage` | Unit tests with V8 coverage. Fails below 100% functions, 95% lines and statements, 90% branches, over `src/assinafy-client`, `src/data`, `src/services`, `src/utils`, `src/logic-functions`, `src/front-components/utils` and the `build-*` helpers in `src/fields`, `src/page-layout-tabs`, `src/command-menu-items` and `src/timeline-activity-types`. |

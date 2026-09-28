@@ -1,13 +1,9 @@
+import { type AssinafyDocumentNode } from 'src/types/assinafy-document-node';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
 import { type StoredSigner } from 'src/types/stored-signer';
 
-// genql types nullable fields as optional. Twenty stores unset TEXT fields as NULL but returns them as '', so those
-// are normalized back to null here, the single place every record read goes through.
-type AssinafyDocumentNode = Partial<Omit<AssinafyDocumentRecord, 'signers' | 'signedDocument'>> &
-  Pick<AssinafyDocumentRecord, 'id' | 'updatedAt'> & {
-    signers?: unknown;
-    signedDocument?: Array<{ fileId: string; label: string; url?: string | null } | null> | null;
-  };
+// Twenty stores unset TEXT fields as NULL but returns them as '', so those are normalized back to null here, the
+// single place every record read goes through.
 
 export const toAssinafyDocumentRecord = (node: AssinafyDocumentNode): AssinafyDocumentRecord => ({
   id: node.id,

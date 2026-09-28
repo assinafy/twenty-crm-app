@@ -1,9 +1,11 @@
-import { type CoreApiClient, type CoreSchema } from 'twenty-client-sdk/core';
+import { type CoreApiClient } from 'twenty-client-sdk/core';
 
 import { DOCUMENT_STATUS } from 'src/constants/document-status';
 import { MAX_RECENT_SENDS } from 'src/constants/limits';
 import { recordLinkFilter } from 'src/data/record-link-filter';
+import { type DocumentStatus } from 'src/types/document-status';
 import { type RecentSend } from 'src/types/recent-send';
+import { type RecordConnection } from 'src/types/record-connection';
 
 // Every status but FAILED, which records a send that never reached Assinafy.
 const MAYBE_SENT_STATUSES = Object.values(DOCUMENT_STATUS).filter((status) => status !== DOCUMENT_STATUS.FAILED);
@@ -11,13 +13,17 @@ const MAYBE_SENT_STATUSES = Object.values(DOCUMENT_STATUS).filter((status) => st
 // The record's documents created since `since` that may have reached the signers, newest first. Selects only what the
 // review step shows, so a field the member's role hides cannot fail the read.
 export const findRecentSends = async (core: CoreApiClient, recordId: string, since: Date): Promise<RecentSend[]> => {
-  const { assinafyDocuments } = await core.query({
+  const {
+    assinafyDocuments,
+  }: {
+    assinafyDocuments?: RecordConnection<{ id: string; name?: string | null; status?: DocumentStatus | null }> | null;
+  } = await core.query({
     assinafyDocuments: {
       __args: {
         filter: {
           and: [
             recordLinkFilter(recordId),
-            { status: { in: MAYBE_SENT_STATUSES as CoreSchema.AssinafyDocumentStatusEnum[] } },
+            { status: { in: MAYBE_SENT_STATUSES } },
             { createdAt: { gte: since.toISOString() } },
           ],
         },
