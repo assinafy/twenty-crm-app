@@ -21,6 +21,11 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    ignore:
+      # The app targets Node.js 24 (.nvmrc, engines.node); its types move with the runtime, not ahead of it.
+      - dependency-name: '@types/node'
+        update-types:
+          - version-update:semver-major
     groups:
       # twenty-sdk, twenty-client-sdk and twenty-ui are released together and must stay on the same version.
       twenty:
