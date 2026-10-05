@@ -63,9 +63,9 @@
     "oxlint": "^1.85.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "twenty-client-sdk": "2.42.0",
-    "twenty-sdk": "2.42.0",
-    "twenty-ui": "2.42.0",
+    "twenty-client-sdk": "2.43.0",
+    "twenty-sdk": "2.43.0",
+    "twenty-ui": "2.43.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"
