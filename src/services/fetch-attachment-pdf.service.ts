@@ -38,7 +38,7 @@ const readCapped = async (body: ReadableStream<Uint8Array>): Promise<Buffer> => 
   return Buffer.concat(chunks);
 };
 
-// The display name travels separately (upload option `name`), so the file part always has a safe PDF name.
+// The SDK applies upload option `name` to the file-part filename; this is the safe PDF fallback.
 export const fetchAttachmentPdf = async ({ url }: { url: string }): Promise<{ buffer: Buffer; fileName: string }> => {
   if (!isHttpUrl(url)) {
     throw invalidInput('source.attachmentId', 'UNSUPPORTED_URL');

@@ -3,9 +3,8 @@ import { type AppResult } from 'src/types/app-result';
 import { type CostEstimate } from 'src/types/cost-estimate';
 import { type DocumentSummary } from 'src/types/document-summary';
 import { type ResendInput } from 'src/types/resend-input';
-import { toCents } from 'src/utils/to-cents.util';
 
-// Quotes the resend first, asks for confirmation when it costs credits, then resends at exactly the quoted cost.
+// Quotes the resend first, asks for confirmation, then resends at exactly the quoted cost.
 // Resolves null when the user declines.
 export const runResendFlow = async ({
   documentRecordId,
@@ -33,7 +32,7 @@ export const runResendFlow = async ({
     };
   }
 
-  if (toCents(estimate.totalCredits) > 0 && !(await confirm(estimate))) {
+  if (!(await confirm(estimate))) {
     return null;
   }
 

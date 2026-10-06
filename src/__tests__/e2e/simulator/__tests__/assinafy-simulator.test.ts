@@ -378,7 +378,7 @@ describe('POST /v1/oauth/revoke', () => {
     expect((await post('/v1/oauth/revoke', { token: 'unknown', ...clientAuth })).status).toBe(200);
   });
 
-  it('ends the grant when an access token is revoked by default', async () => {
+  it('revokes only the access token by default, leaving refresh usable', async () => {
     const tokens = await connect();
 
     const response = await post('/v1/oauth/revoke', {
@@ -389,17 +389,17 @@ describe('POST /v1/oauth/revoke', () => {
 
     expect(response.status).toBe(200);
     expect((await api('/accounts', tokens.access_token)).status).toBe(401);
-    expect((await refresh(tokens.refresh_token ?? '')).status).toBe(400);
+    expect((await refresh(tokens.refresh_token ?? '')).status).toBe(200);
   });
 
-  it('revokes only the access token when configured', async () => {
-    await admin('POST', '/config', { revokeAccessEndsGrant: false });
+  it('ends the grant on access-token revocation when configured', async () => {
+    await admin('POST', '/config', { revokeAccessEndsGrant: true });
     const tokens = await connect();
 
     await post('/v1/oauth/revoke', { token: tokens.access_token, ...clientAuth });
 
     expect((await api('/accounts', tokens.access_token)).status).toBe(401);
-    expect((await refresh(tokens.refresh_token ?? '')).status).toBe(200);
+    expect((await refresh(tokens.refresh_token ?? '')).status).toBe(400);
   });
 
   it('ends the grant when the refresh token is revoked', async () => {

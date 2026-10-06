@@ -7,9 +7,9 @@ import {
 } from 'src/constants/assinafy';
 import { errorName } from 'src/utils/error-name.util';
 
-// Revokes a grant in Assinafy with the app's OAuth client. Twenty exposes no refresh token to the app, so the access
-// token is revoked (Assinafy ends the grant for either token). The token is read only when the client credentials are
-// configured. Best effort: never throws and never logs the token.
+// Revokes the available access token with the app's OAuth client. Twenty exposes no refresh token to the app;
+// access-token revocation does not end the refresh authorization. The token is read only when client credentials
+// are configured. Best effort: never throws and never logs the token.
 export const revokeAssinafyGrant = async (operation: string, readAccessToken: () => Promise<string>): Promise<void> => {
   const clientId = process.env[ASSINAFY_CLIENT_ID_VARIABLE]?.trim();
   const clientSecret = process.env[ASSINAFY_CLIENT_SECRET_VARIABLE]?.trim();

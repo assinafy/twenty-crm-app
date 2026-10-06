@@ -48,7 +48,7 @@ export const pdfRequest = (crm: CrmFixtures, name: string) => ({
 
 export const prepare = async (token: string, request: object): Promise<PreparedSignatureRequest> => {
   const prepared = await callRoute<PreparedSignatureRequest>('/s/assinafy/prepare', token, request);
-  expect(prepared).toMatchObject({ ok: true });
+  expect(prepared.ok ? 'OK' : prepared.error.code).toBe('OK');
   return prepared as unknown as PreparedSignatureRequest;
 };
 

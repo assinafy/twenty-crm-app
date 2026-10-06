@@ -509,7 +509,14 @@ describe('Assinafy sandbox (live)', () => {
       },
       resolved,
     );
-    const record = records.get(summary.documentRecordId);
+    const delivered = records.get(summary.documentRecordId);
+    expect(delivered).toBeDefined();
+    // Template creation can return before its assignment is available; reconcile without sending again.
+    const record = await vi.waitFor(async () => {
+      const synced = await syncAssinafyDocument(ctx, delivered!, resolved);
+      expect(synced.assinafyAssignmentId).toEqual(expect.any(String));
+      return synced;
+    }, { timeout: 60_000, interval: 2_000 });
     report('template send', {
       estimate: quote.estimate,
       createStatus: lastStatus('POST', `/accounts/${resolved.accountId}/templates/${templateId}/documents`),

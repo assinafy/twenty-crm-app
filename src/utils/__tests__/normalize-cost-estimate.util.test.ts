@@ -109,10 +109,15 @@ describe('normalizeCostEstimate', () => {
     { ...estimate, total_credits: undefined },
     { ...estimate, total_credits: Number.NaN },
     { ...estimate, total_credits: '1.90' },
+    { ...estimate, total_credits: -0.45 },
     { ...estimate, documents: undefined },
     { ...estimate, documents: Number.POSITIVE_INFINITY },
+    { ...estimate, documents: -1 },
+    { ...estimate, documents: 0.5 },
+    { ...estimate, documents: Number.MAX_SAFE_INTEGER + 1 },
     { has_sufficient_credits: true },
     { has_sufficient_credits: true, total: '0.45' },
+    { has_sufficient_credits: true, total: -0.45 },
   ])(
     'rejects an unexpected shape (%o)',
     (raw) => {

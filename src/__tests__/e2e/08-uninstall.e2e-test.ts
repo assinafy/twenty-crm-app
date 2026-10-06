@@ -54,7 +54,7 @@ describe('uninstall', () => {
     expect((await appRows(app.id, 'keyValuePair', 'key')).length).toBeGreaterThan(0);
   });
 
-  it('the uninstall hook revokes every grant once, and the app, its data and its connections are gone', async () => {
+  it('the uninstall hook revokes every available access token once, and the app, its data and its connections are gone', async () => {
     const mark = await simulator.mark();
 
     await uninstallApp();
@@ -77,7 +77,7 @@ describe('uninstall', () => {
     // Each connection is resolved once: no refresh and no second read.
     expect(log.filter(({ kind }) => kind === 'token')).toEqual([]);
     const simulatorGrants = await simulator.grants();
-    expect(grants.map((id) => simulatorGrants.find((grant) => grant.id === id)?.revoked)).toEqual([true, true, true]);
+    expect(grants.map((id) => simulatorGrants.find((grant) => grant.id === id)?.revoked)).toEqual([false, false, false]);
 
     const objects = await psql(
       `select id from core."objectMetadata" where "universalIdentifier" = '${ASSINAFY_DOCUMENT_OBJECT_UNIVERSAL_IDENTIFIER}'`,

@@ -31,10 +31,12 @@ app) pela página de contato da Assinafy.
 - **Credenciais:** os tokens OAuth são obtidos pelo Twenty com PKCE e guardados pelo Twenty; o app os lê a cada chamada
   e nunca os armazena. O segredo do cliente OAuth (`ASSINAFY_CLIENT_SECRET`) e a chave de API da Assinafy
   (`ASSINAFY_API_KEY`) são variáveis secretas, injetadas apenas nas funções lógicas e nunca enviadas ao navegador. Remover
-  uma conexão revoga a autorização dela na Assinafy, mesmo que ela esteja marcada para reconexão, e desinstalar o app
-  revoga todas as autorizações do workspace. As funções de ciclo de vida ignoram execuções iniciadas por um membro
+  uma conexão solicita a revogação do token de acesso disponível, mesmo que ela esteja marcada para reconexão;
+  desinstalar o app faz isso para todas as conexões. O Twenty não expõe os tokens de renovação ao app, e revogar
+  um token de acesso não impede a renovação. Para encerrar completamente a autorização, revogue o app em
+  Aplicativos conectados na Assinafy. As funções de ciclo de vida ignoram execuções iniciadas por um membro
   (por exemplo, pela API ou por um fluxo de trabalho iniciado manualmente). Um fluxo de trabalho disparado por evento,
-  agendamento ou webhook roda sem membro e, se apontado para essas funções, pode revogar autorizações; limite a permissão
+  agendamento ou webhook roda sem membro e, se apontado para essas funções, pode revogar tokens de acesso; limite a permissão
   Workflows a quem administra o workspace. Remover do Twenty o membro que adicionou uma conexão encerra essa conexão
   e apaga os tokens dela no Twenty, mas não revoga a autorização na Assinafy; revogue-a em Aplicativos conectados.
 - **Identidade de quem envia:** um envio usa uma única credencial, escolhida antes de qualquer chamada à Assinafy, e

@@ -171,12 +171,12 @@ describe('OAuth connections through the simulator', () => {
     expect(personalCalls(log).map(({ status, tokenIndex }) => ({ status, tokenIndex }))).toEqual([{ status: 200, tokenIndex: 2 }]);
   });
 
-  it('deleting a connection revokes its grant with the client credentials', async () => {
+  it('deleting a connection revokes its access token with the client credentials', async () => {
     const revokes = await disconnect(personal.account.id);
 
     // The simulator answers 401 to a revoke without the client id and secret.
     expect(revokes).toEqual([expect.objectContaining({ status: 200, tokenTypeHint: 'access_token', grantId: personal.grantId })]);
-    expect((await simulator.grants()).find(({ id }) => id === personal.grantId)?.revoked).toBe(true);
+    expect((await simulator.grants()).find(({ id }) => id === personal.grantId)?.revoked).toBe(false);
   });
 
   it('a connection granted without templates:write gets INSUFFICIENT_SCOPE on a template send', async ({ skip }) => {
@@ -287,10 +287,10 @@ describe('OAuth connections through the simulator', () => {
     expect((await findAccount(shared.account.id))?.authFailedAt).toEqual(expect.any(String));
   });
 
-  it('deleting flagged connections still revokes their grants', async () => {
+  it('deleting flagged connections still revokes their access tokens', async () => {
     const narrowedRevokes = await disconnect(narrowed.account.id);
     expect(narrowedRevokes).toEqual([expect.objectContaining({ status: 200, tokenTypeHint: 'access_token', grantId: narrowed.grantId })]);
-    expect((await simulator.grants()).find(({ id }) => id === narrowed.grantId)?.revoked).toBe(true);
+    expect((await simulator.grants()).find(({ id }) => id === narrowed.grantId)?.revoked).toBe(false);
 
     // Grants already ended in Assinafy: the revoke is still sent and accepted.
     for (const { account } of [revoked, shared]) {

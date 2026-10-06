@@ -3,7 +3,7 @@ import { type openCommandConfirmationModal, type useTranslate } from 'twenty-sdk
 import { formatCredits } from 'src/front-components/utils/format-credits.util';
 import { type CostEstimate } from 'src/types/cost-estimate';
 
-// A paid, non-destructive confirmation: the host draws a missing accent as danger.
+// A non-destructive confirmation: the host draws a missing accent as danger.
 export const confirmResend = async ({
   estimate,
   t,

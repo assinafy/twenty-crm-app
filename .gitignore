@@ -44,3 +44,6 @@ yarn-error.log*
 *.tsbuildinfo
 *.d.ts
 
+# local agent instructions
+/AGENTS.md
+/CLAUDE.md

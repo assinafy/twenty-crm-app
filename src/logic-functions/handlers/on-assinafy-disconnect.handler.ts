@@ -22,7 +22,7 @@ const readAccessToken = async (connectedAccountId: string): Promise<string> => {
   }
 };
 
-// Revokes the grant in Assinafy when its Twenty connection is removed. Runs inline in the disconnect request and
+// Revokes the available access token when its Twenty connection is removed. Runs inline in the disconnect request and
 // never throws. Twenty runs the real hook without a person; a run a member starts (any role with the Workflows
 // permission can execute any function, with any connection id) is ignored.
 export const onAssinafyDisconnectHandler = async (

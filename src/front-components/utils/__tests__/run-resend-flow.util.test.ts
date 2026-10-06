@@ -26,15 +26,23 @@ describe('runResendFlow', () => {
     expect(confirm).toHaveBeenCalledWith(quote);
   });
 
-  it('resends a free invitation without asking', async () => {
+  it.each([0, 0.004])('confirms an invitation quoted at %s credits before resending', async (totalCredits) => {
+    const quote = estimate({ totalCredits });
     const call = vi
       .fn<Call>()
-      .mockResolvedValueOnce({ ok: true, estimate: estimate({ totalCredits: 0.004 }) })
+      .mockResolvedValueOnce({ ok: true, estimate: quote })
       .mockResolvedValueOnce({ ok: true, ...summary() });
     const confirm = vi.fn<(quote: CostEstimate) => Promise<boolean>>(async () => true);
 
     await expect(runResendFlow({ ...ids, call, confirm })).resolves.toMatchObject({ ok: true });
-    expect(confirm).not.toHaveBeenCalled();
+    expect(confirm).toHaveBeenCalledWith(quote);
+  });
+
+  it('sends no free invitation when the member declines', async () => {
+    const call = vi.fn<Call>().mockResolvedValue({ ok: true, estimate: estimate({ totalCredits: 0 }) });
+
+    await expect(runResendFlow({ ...ids, call, confirm: async () => false })).resolves.toBeNull();
+    expect(call).toHaveBeenCalledTimes(1);
   });
 
   it('stops when the user declines', async () => {

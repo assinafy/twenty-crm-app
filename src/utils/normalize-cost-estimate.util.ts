@@ -10,9 +10,9 @@ const unexpectedEstimate = (): AppFailure =>
   new AppFailure('INTERNAL', 'A Assinafy retornou uma estimativa de custo inesperada.');
 
 // The amounts gate billable calls, so a missing or malformed one fails closed instead of reading as free.
-const requireNumber = (value: unknown): number => {
+const requireNumber = (value: unknown, integer = false): number => {
   const number = toNumber(value);
-  if (number === null) {
+  if (number === null || number < 0 || (integer && !Number.isSafeInteger(number))) {
     throw unexpectedEstimate();
   }
   return number;
@@ -25,7 +25,7 @@ export const normalizeCostEstimate = (raw: unknown): CostEstimate => {
 
   if (typeof estimate.has_sufficient_resources === 'boolean') {
     return {
-      documents: requireNumber(estimate.documents),
+      documents: requireNumber(estimate.documents, true),
       totalCredits: requireNumber(estimate.total_credits),
       creditBalance: toNumber(estimate.credit_balance),
       documentBalance: toNumber(estimate.document_balance),

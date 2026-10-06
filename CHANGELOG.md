@@ -5,6 +5,13 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-10-05
+
+### Corrigido
+
+- Estimativas com custos negativos ou quantidades de documentos fracionárias, negativas ou fora da precisão segura são recusadas antes de um envio ou reenvio.
+- O reenvio de convites sempre mostra o custo e pede confirmação, inclusive quando não consome créditos.
+
 ## [1.0.0] - 2026-09-25
 
 ### Adicionado

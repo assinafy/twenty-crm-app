@@ -33,6 +33,7 @@ import {
   ASSINAFY_CLIENT_SECRET_VARIABLE,
 } from 'src/constants/assinafy';
 import { APPLICATION_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
+import { errorName } from 'src/utils/error-name.util';
 
 const APP_PATH = process.cwd();
 const SIMULATOR_SOURCE = join(APP_PATH, 'src/__tests__/e2e/simulator/assinafy-simulator.mjs');
@@ -180,7 +181,7 @@ const step = async (label: string, run: () => Promise<unknown>) => {
   try {
     await run();
   } catch (error) {
-    console.warn(`[e2e] teardown: ${label} failed`, error instanceof Error ? error.message : error);
+    console.warn(`[e2e] teardown: ${label} failed`, { code: 'CLEANUP_FAILED', name: errorName(error) });
   }
 };
 
@@ -204,7 +205,7 @@ export const teardown = async () => {
       ].join('\n'),
     );
   } else {
-    // Uninstalling first lets the uninstall hook revoke the grants while the simulator and the OAuth client exist.
+    // Uninstalling first lets the uninstall hook revoke the access tokens while the simulator and the OAuth client exist.
     await step('uninstall', uninstallApp);
     await step('registration variables reset', resetRegistrationVariables);
     await step('config variable removal', deleteOutboundAllowlist);

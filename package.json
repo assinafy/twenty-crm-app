@@ -1,6 +1,6 @@
 {
   "name": "@assinafy/twenty-app",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Envie PDFs e modelos para assinatura eletrônica com a Assinafy e acompanhe cada assinatura pelo Twenty.",
   "license": "MIT",
   "author": "Assinafy",

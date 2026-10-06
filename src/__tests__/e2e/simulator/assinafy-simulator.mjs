@@ -17,7 +17,7 @@ const APP_SCOPES = [
 const CODE_TTL_MS = 60_000;
 const REFRESH_TTL_MS = 30 * 24 * 3600_000;
 const MAX_FORM_BYTES = 1_000_000;
-const DEFAULT_CONFIG = { deny: false, grantedScopes: null, accessTtlSeconds: 3600, revokeAccessEndsGrant: true };
+const DEFAULT_CONFIG = { deny: false, grantedScopes: null, accessTtlSeconds: 3600, revokeAccessEndsGrant: false };
 const KNOWN_GRANT_TYPES = ['authorization_code', 'refresh_token'];
 const KNOWN_HINTS = ['access_token', 'refresh_token'];
 // Request headers worth forwarding upstream; credentials and hop-by-hop headers are rebuilt or dropped.
