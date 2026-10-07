@@ -21,8 +21,11 @@ import {
 import { syncAssinafyDocumentsHandler } from 'src/logic-functions/handlers/sync-assinafy-documents.handler';
 import { purgePendingUploads } from 'src/services/purge-pending-uploads.service';
 import { readPendingUploads } from 'src/services/read-pending-uploads.service';
+import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
+import { reconcileWebhookEndpoints } from 'src/services/reconcile-webhook-endpoints.service';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
 import { AppFailure } from 'src/utils/app-failure.util';
+import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
 
 vi.mock('src/assinafy-client/list-background-credentials', () => ({ listBackgroundCredentials: vi.fn<typeof listBackgroundCredentials>() }));
 vi.mock('src/assinafy-client/resolve-credential-account', () => ({ resolveCredentialAccount: vi.fn<typeof resolveCredentialAccount>() }));
@@ -31,6 +34,9 @@ vi.mock('src/data/update-assinafy-document', () => ({ updateAssinafyDocument: vi
 vi.mock('src/services/purge-pending-uploads.service', () => ({ purgePendingUploads: vi.fn<typeof purgePendingUploads>() }));
 vi.mock('src/services/read-pending-uploads.service', () => ({ readPendingUploads: vi.fn<typeof readPendingUploads>() }));
 vi.mock('src/services/sync-assinafy-document.service', () => ({ syncAssinafyDocument: vi.fn<typeof syncAssinafyDocument>() }));
+vi.mock('src/services/read-webhook-endpoints.service', () => ({ readWebhookEndpoints: vi.fn<typeof readWebhookEndpoints>() }));
+vi.mock('src/services/reconcile-webhook-endpoints.service', () => ({ reconcileWebhookEndpoints: vi.fn<typeof reconcileWebhookEndpoints>() }));
+vi.mock('src/utils/read-webhook-email.util', () => ({ readWebhookEmail: vi.fn<typeof readWebhookEmail>() }));
 
 const findSyncable = vi.mocked(findSyncableAssinafyDocuments);
 const listCredentials = vi.mocked(listBackgroundCredentials);
@@ -38,6 +44,15 @@ const resolve = vi.mocked(resolveCredentialAccount);
 const update = vi.mocked(updateAssinafyDocument);
 const purge = vi.mocked(purgePendingUploads);
 const sync = vi.mocked(syncAssinafyDocument);
+const reconcile = vi.mocked(reconcileWebhookEndpoints);
+const storedEndpoint = {
+  accountId: 'acc-1',
+  endpointId: 'ep-1',
+  url: 'https://twenty.example.invalid/s/assinafy/webhook?token=t',
+  email: 'ops@example.invalid',
+  token: 't',
+  secret: null,
+};
 
 const keyAccount = buildResolved({}, 'acc-1', apiKeyCredential);
 const sharedAccount = buildResolved({}, 'acc-2', sharedCredential);
@@ -54,6 +69,45 @@ describe('syncAssinafyDocumentsHandler', () => {
     update.mockImplementation(async (_core, id) => buildDocumentRecord({ id }));
     purge.mockResolvedValue(2);
     vi.mocked(readPendingUploads).mockResolvedValue([]);
+    vi.mocked(readWebhookEndpoints).mockResolvedValue([]);
+    vi.mocked(readWebhookEmail).mockReturnValue(null);
+    reconcile.mockResolvedValue(undefined);
+  });
+
+  it('leaves webhooks alone while they are off and none is registered', async () => {
+    findSyncable.mockResolvedValue([recordFor('r1', 'acc-1')]);
+
+    await syncAssinafyDocumentsHandler(buildContext({ userWorkspaceId: null }));
+
+    expect(reconcile).not.toHaveBeenCalled();
+  });
+
+  it('reconciles the webhook endpoints with every resolved account while webhooks are on, even with nothing to sync', async () => {
+    findSyncable.mockResolvedValue([]);
+    vi.mocked(readWebhookEmail).mockReturnValue('ops@example.invalid');
+
+    await syncAssinafyDocumentsHandler(buildContext({ userWorkspaceId: null }));
+
+    expect(reconcile).toHaveBeenCalledExactlyOnceWith([keyAccount, sharedAccount], 'ops@example.invalid');
+  });
+
+  it('removes the registered endpoints once webhooks are turned off', async () => {
+    findSyncable.mockResolvedValue([]);
+    vi.mocked(readWebhookEndpoints).mockResolvedValue([storedEndpoint]);
+
+    await syncAssinafyDocumentsHandler(buildContext({ userWorkspaceId: null }));
+
+    expect(reconcile).toHaveBeenCalledExactlyOnceWith([keyAccount, sharedAccount], null);
+  });
+
+  it('logs a failed webhook reconciliation without failing the run', async () => {
+    findSyncable.mockResolvedValue([]);
+    vi.mocked(readWebhookEmail).mockReturnValue('ops@example.invalid');
+    reconcile.mockRejectedValue(new AppFailure('PROVIDER_UNAVAILABLE', 'down'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    await expect(syncAssinafyDocumentsHandler(buildContext({ userWorkspaceId: null }))).resolves.toMatchObject({ found: 0 });
+    expect(warn).toHaveBeenCalledWith('[assinafy] sync-assinafy-documents: webhooks failed', { code: 'PROVIDER_UNAVAILABLE' });
   });
 
   it('returns early without listing credentials or purging when nothing needs a sync', async () => {

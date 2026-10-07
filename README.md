@@ -9,7 +9,7 @@ Envie PDFs e modelos da Assinafy para assinatura eletrônica a partir de Pessoas
 3. **Definir os signatários:** confira os contatos e selecione e-mail, WhatsApp ou certificado digital ICP-Brasil A1/A3 para cada assinatura. O certificado fica com o titular; o app não recebe o arquivo do certificado nem a senha. Com certificado, cada signatário assina em sua própria etapa.
 4. **Preparar:** Preparar e revisar carrega o PDF na Assinafy ou confere o modelo e consulta o custo. Esta etapa não cria convites. Se desistir antes de enviar, o app tenta descartar o PDF não enviado; a limpeza em segundo plano trata os uploads acompanhados que sobrarem.
 5. **Confirmar e enviar:** confira o workspace, os signatários, os envios recentes e o custo. Depois da sua confirmação, o app confere novamente o custo e cria o registro Enviando no Twenty antes de solicitar as assinaturas. O convite só é solicitado nessa etapa. Uma tentativa repetida no mesmo fluxo reaproveita a solicitação; quando o resultado não é confirmado, o registro permanece para conferência.
-6. **Assinar e acompanhar:** os signatários recebem o convite pelo canal escolhido e validam a assinatura na Assinafy. O painel permite atualizar o andamento, reenviar convites com conferência de custo e cancelar quando permitido. As atualizações em segundo plano acontecem a cada 15 minutos para os documentos dentro da janela de acompanhamento.
+6. **Assinar e acompanhar:** os signatários recebem o convite pelo canal escolhido e validam a assinatura na Assinafy. O painel permite atualizar o andamento, reenviar convites com conferência de custo e cancelar quando permitido. As atualizações em segundo plano acontecem a cada 15 minutos para os documentos dentro da janela de acompanhamento e, com os webhooks ativados, assim que a Assinafy avisa uma assinatura, recusa, cancelamento ou conclusão.
 7. **Concluir e guardar:** depois que todos assinam, a Assinafy finaliza o documento. O app copia o PDF assinado e, quando disponível, o PDF ICP-Brasil para o Twenty. O status passa a Assinado somente depois que os arquivos esperados estão guardados. Baixe-os no painel ou na aba Assinaturas.
 
 As seções abaixo detalham a configuração, cada etapa, os status, as permissões e as limitações.
@@ -21,7 +21,7 @@ As seções abaixo detalham a configuração, cada etapa, os status, as permiss�
 - Mostra a estimativa de custo da Assinafy em tempo real (documentos do plano e créditos) antes de qualquer envio e pede confirmação explícita. O custo é conferido novamente logo antes do envio.
 - Mantém no Twenty um registro de Documento Assinafy para cada solicitação, vinculado à Pessoa, Empresa ou Oportunidade de origem, com o status, o andamento dos signatários e o prazo para assinar.
 - Guarda o PDF assinado e, quando houver certificado digital, o PDF com certificado ICP-Brasil no campo Documento assinado do registro.
-- Reenvia o convite a um signatário que ainda não assinou, cancela uma solicitação pendente e atualiza os status em segundo plano a cada 15 minutos.
+- Reenvia o convite a um signatário que ainda não assinou, cancela uma solicitação pendente e atualiza os status em segundo plano a cada 15 minutos ou, com os webhooks opcionais da Assinafy, na hora.
 - Permite que o chat de IA prepare uma solicitação de assinatura para você revisar e enviar, e adiciona uma ação de fluxo de trabalho que envia documentos para assinatura com um limite de créditos.
 
 ## O que o app adiciona ao Twenty
@@ -35,15 +35,16 @@ As seções abaixo detalham a configuração, cada etapa, os status, as permiss�
 - **Comando:** Enviar para assinatura, fixado em Pessoa, Empresa e Oportunidade quando exatamente um registro está selecionado.
 - **Funções lógicas:**
   - Sete rotas usadas pelos painéis: `/assinafy/context`, `/assinafy/prepare`, `/assinafy/send`, `/assinafy/discard`, `/assinafy/documents/refresh`, `/assinafy/documents/resend` e `/assinafy/documents/cancel`. Todas são `POST`, exigem um membro do workspace autenticado e não são públicas.
+  - Uma rota pública, `/assinafy/webhook`, que recebe os eventos da Assinafy quando os webhooks estão ativados. Ela só aceita entregas com o token do endpoint registrado pelo app (e a assinatura da Assinafy, quando o endpoint é assinado) e apenas faz o app consultar o documento na Assinafy.
   - Três ferramentas de IA: `get-signature-context-tool`, `propose-signature-request` e `get-assinafy-document-status`.
   - Uma ação de fluxo de trabalho: Enviar para assinatura (Assinafy).
   - Uma tarefa agendada, `sync-assinafy-documents`, a cada 15 minutos.
-  - Uma verificação de saúde que informa problemas de credenciais na página de configurações do app.
+  - Uma verificação de saúde que informa problemas de credenciais, e webhooks ativados ainda sem endpoint registrado, na página de configurações do app.
   - Duas funções de ciclo de vida: `on-assinafy-disconnect` revoga o token de acesso disponível quando uma conexão é removida, mesmo que ela esteja marcada para reconexão, e `uninstall` faz isso para todas as conexões antes de o app ser removido. Elas só executam a revogação quando chamadas pelo próprio Twenty; uma execução iniciada por um membro é ignorada. Para encerrar também a autorização de renovação, revogue o app em Aplicativos conectados na Assinafy.
-- **Provedor de conexão:** OAuth 2.0 da Assinafy com PKCE, solicitando `documents:read documents:write templates:read templates:write account:read offline_access`.
+- **Provedor de conexão:** OAuth 2.0 da Assinafy com PKCE, solicitando `documents:read documents:write templates:read templates:write account:read webhooks:write offline_access`.
 - **Tipo de atividade na linha do tempo:** "criou uma solicitação de assinatura", na linha do tempo da Pessoa, Empresa ou Oportunidade vinculada.
 - **Função:** Assinafy, a função própria do app, com o mínimo de privilégios (veja Permissões e dados).
-- **Variáveis:** as variáveis de servidor `ASSINAFY_CLIENT_ID` e `ASSINAFY_CLIENT_SECRET` e as variáveis do aplicativo `ASSINAFY_API_KEY` (chave de API da Assinafy) e `ASSINAFY_ACCOUNT_ID` (ID do workspace na Assinafy). Nenhuma é obrigatória isoladamente; você precisa de uma conexão ou de uma chave de API.
+- **Variáveis:** as variáveis de servidor `ASSINAFY_CLIENT_ID` e `ASSINAFY_CLIENT_SECRET` e as variáveis do aplicativo `ASSINAFY_API_KEY` (chave de API da Assinafy), `ASSINAFY_ACCOUNT_ID` (ID do workspace na Assinafy) e `ASSINAFY_WEBHOOK_EMAIL` (e-mail dos webhooks da Assinafy, que ativa os webhooks). Nenhuma é obrigatória isoladamente; você precisa de uma conexão ou de uma chave de API.
 
 ## Requisitos
 
@@ -63,7 +64,7 @@ Pule esta parte se o workspace for usar apenas uma chave de API.
 2. Preencha:
    - **Tipo:** confidencial. Não é possível alterá-lo depois.
    - **URI de redirecionamento:** exatamente `<SERVER_URL>/auth/apps/callback`, em que `<SERVER_URL>` é a URL base pública do seu servidor Twenty (por exemplo, `https://twenty.example.com/auth/apps/callback`). Ela precisa usar `https://`, e uma barra no final a torna um endereço diferente. Todos os workspaces do servidor compartilham essa mesma URI de redirecionamento.
-   - **Permissões:** `documents:read`, `documents:write`, `templates:read`, `templates:write`, `account:read` e `offline_access`.
+   - **Permissões:** `documents:read`, `documents:write`, `templates:read`, `templates:write`, `account:read`, `webhooks:write` e `offline_access`. `webhooks:write` só é usada para registrar o endpoint dos webhooks; conexões criadas antes dessa permissão continuam enviando, mas precisam ser reconectadas para registrar webhooks.
 3. Copie o ID do cliente e o segredo do cliente. A Assinafy mostra o segredo uma única vez.
 4. No Twenty, abra o app Assinafy instalado como administrador do servidor e preencha as variáveis de servidor `ASSINAFY_CLIENT_ID` e `ASSINAFY_CLIENT_SECRET`. No Twenty Cloud, o dono do app define essas variáveis uma única vez para toda a instância, na aba Configuração do registro do app.
 
@@ -141,6 +142,18 @@ Quando o documento é assinado, o PDF certificado é guardado como `<nome do doc
 
 A cada 15 minutos, o app atualiza os documentos em aberto (Aguardando assinaturas, Finalizando, Desconhecido e envios não confirmados) enviados, ou criados, no caso dos envios não confirmados, nos últimos 120 dias, até 50 por execução, começando pelos verificados há mais tempo, e guarda os PDFs assinados. Ele usa apenas a chave de API e as conexões compartilhadas com o workspace, cada uma para os documentos do workspace da Assinafy que ela acessa. Os documentos de um workspace da Assinafy que nenhuma delas acessa só são atualizados quando alguém os abre; a etapa de revisão avisa isso antes do envio.
 
+### Webhooks da Assinafy (opcional)
+
+Com os webhooks, os status mudam no Twenty assim que a Assinafy registra uma assinatura, uma recusa, um cancelamento, a conclusão do documento ou uma falha de processamento. Sem eles, tudo continua funcionando com a atualização a cada 15 minutos.
+
+1. Confirme que o servidor Twenty é acessível pela internet: a Assinafy entrega os eventos em `<URL das funções>/assinafy/webhook`, em que a URL das funções é `<SERVER_URL>/s` em instalações próprias ou o domínio de funções do workspace no Twenty Cloud.
+2. Tenha uma chave de API ou uma conexão compartilhada com o workspace (aprovada com `webhooks:write`) para cada workspace da Assinafy.
+3. Na aba Variáveis do app, preencha E-mail dos webhooks da Assinafy (`ASSINAFY_WEBHOOK_EMAIL`) com o e-mail que a Assinafy deve avisar quando não conseguir entregar um evento.
+
+Na próxima atualização em segundo plano (em até 15 minutos), o app registra um endpoint chamado Twenty em cada workspace da Assinafy que uma dessas credenciais acessa. Com a chave de API, o endpoint é assinado (Standard Webhooks) e o app confere a assinatura de cada entrega; uma conexão OAuth não pode ler o segredo de assinatura, então o endpoint dela é protegido apenas pelo token aleatório da URL. Em qualquer caso, um evento só faz o app consultar o documento na Assinafy, e nada do conteúdo do evento é guardado.
+
+A Assinafy permite 1 endpoint por workspace, ou até 3 nos planos pagos. O app nunca altera nem remove endpoints de outras integrações; sem um espaço livre, ele não registra o seu e mantém a atualização a cada 15 minutos. Para desativar, apague o e-mail: a próxima atualização remove o endpoint do app. Desinstalar o app também o remove, quando uma credencial ainda acessa o workspace da Assinafy; caso contrário, exclua o endpoint Twenty nas configurações de webhooks da Assinafy.
+
 ### Chat de IA
 
 No chat de IA do Twenty, peça ao assistente que prepare uma solicitação de assinatura para uma Pessoa, Empresa ou Oportunidade. Ele consulta os PDFs, os modelos, os contatos e os envios recentes do registro com `get-signature-context-tool`, e então `propose-signature-request` mostra um cartão com o fluxo de envio preenchido. Se a proposta for recusada (por exemplo, um anexo que não está no registro), o cartão mostra o motivo. Os signatários só podem ser pessoas do CRM, validadas por e-mail por padrão. O assistente não pode enviar arquivos, gerar cobranças nem enviar solicitações: você revisa o documento, os signatários e o custo da Assinafy no cartão e seleciona Enviar para assinatura. Pergunte ao assistente sobre uma solicitação existente e `get-assinafy-document-status` a atualiza e resume quem já assinou, com os mesmos estados de signatário do painel. Essa consulta nunca gera cobrança: ela só atualiza o registro no Twenty e guarda os PDFs assinados quando o documento está concluído.
@@ -186,13 +199,14 @@ Para agir quando um documento for assinado, crie em Workflows um fluxo de trabal
 
 - O registro do Documento Assinafy. Detalhes dos signatários guarda, para cada signatário, o ID na Assinafy, o nome, o e-mail, o telefone, os métodos de validação e de convite, a etapa e o andamento. Nunca guarda links de assinatura nem números de CPF/CNPJ.
 - No armazenamento de chave-valor do app: os IDs de uploads que nunca foram enviados para assinatura, com o membro que os preparou (até os 200 mais recentes), e os IDs das conexões compartilhadas. Um upload só é reaproveitado ou enviado pelo membro que o preparou e por até 23 horas; depois disso, a revisão carrega o PDF de novo. Os uploads não enviados são excluídos da Assinafy quando você sai do fluxo ou troca o arquivo ou o nome dele; só o membro que preparou um upload pode descartá-lo. Os que sobrarem, inclusive os de envios que terminaram em Falhou, são excluídos pela tarefa em segundo plano após 24 horas, quando a chave de API ou uma conexão compartilhada acessa o workspace da Assinafy deles e a Assinafy ainda os informa como não enviados, ou como uploads cujo processamento falhou e que nunca foram atribuídos. Se a Assinafy ainda estiver processando o arquivo, a tarefa tenta de novo nas execuções seguintes, por até 7 dias. Os que nenhuma chave de API ou conexão compartilhada acessa, ou que não puderam ser excluídos em 7 dias, ficam na Assinafy e deixam de ser acompanhados pelo app. A exclusão automática cobre os uploads que o app acompanha (até 200 por vez). Nenhum upload é excluído enquanto um Documento Assinafy que não terminou em Falhou apontar para ele.
+- Com os webhooks ativados, também no armazenamento de chave-valor: para cada workspace da Assinafy, o ID do endpoint registrado, a URL e o e-mail dele, o token da URL e, nos endpoints assinados, o segredo de assinatura. O conteúdo dos eventos recebidos nunca é guardado.
 - Os tokens OAuth são guardados pelo Twenty, nunca pelo app. Tokens, chaves de API, links de assinatura e corpos de resposta da Assinafy nunca são registrados em log; as mensagens da Assinafy e o motivo de uma recusa são exibidos e guardados com links, e-mails e números longos substituídos por [link], [e-mail] e [número], com até 300 caracteres.
 
 **LGPD:** os dados dos signatários que você envia são tratados pela Assinafy, que atua como operadora nos termos de uso dela. Veja a política de privacidade da Assinafy em https://www.assinafy.com.br/politica-de-privacidade.
 
 ## Limitações
 
-- O app não usa webhooks da Assinafy. Os status vêm da atualização em segundo plano a cada 15 minutos, da abertura de um documento e de Atualizar.
+- Sem os webhooks opcionais, os status vêm da atualização em segundo plano a cada 15 minutos, da abertura de um documento e de Atualizar. Os webhooks exigem um servidor Twenty acessível pela internet e um espaço livre de endpoint no workspace da Assinafy. A expiração de um documento não gera evento e continua sendo detectada pela atualização periódica.
 - O painel não envia arquivos do seu computador. Anexe primeiro o PDF na aba Arquivos do registro.
 - Modelos com campos a preencher (campos de editor) não podem ser enviados por fluxos de trabalho. Os fluxos de trabalho também enviam apenas com validação por E-mail ou WhatsApp, em paralelo.
 - Um signatário por WhatsApp sem e-mail ganha um novo perfil de signatário na Assinafy a cada envio, porque a Assinafy localiza signatários existentes pelo e-mail.
@@ -249,6 +263,7 @@ O campo Último erro de um Documento Assinafy guarda o código da última opera�
 | … não tem todas as permissões necessárias | Chave de API: crie na Assinafy uma chave de API com acesso a documentos e modelos e salve-a na aba Variáveis. Conexão: reconecte-a na aba Geral e aprove todas as permissões solicitadas. |
 | … não tem acesso ao workspace | Chave de API: confira o ID do workspace na Assinafy na aba Variáveis ou use a chave de um usuário com acesso a esse workspace. Conexão: reconecte-a na aba Geral com um usuário da Assinafy que tenha acesso ao workspace. |
 | A chave de API da Assinafy acessa vários workspaces | Preencha o ID do workspace na Assinafy na aba Variáveis. |
+| Os webhooks da Assinafy ainda não estão registrados | Normal por até 15 minutos depois de preencher o e-mail dos webhooks. Se continuar, confira se o servidor Twenty é acessível pela internet, se o workspace da Assinafy tem um endpoint de webhook livre e se a conexão compartilhada foi aprovada com `webhooks:write` (reconecte-a). Os status continuam sendo atualizados a cada 15 minutos. |
 
 Uma indisponibilidade temporária da Assinafy não gera aviso.
 

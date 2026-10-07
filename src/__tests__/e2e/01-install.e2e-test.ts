@@ -76,6 +76,7 @@ describe('install of the simulation build', () => {
       ids.REFRESH_DOCUMENT_ROUTE_UNIVERSAL_IDENTIFIER,
       ids.RESEND_SIGNATURE_REQUEST_ROUTE_UNIVERSAL_IDENTIFIER,
       ids.CANCEL_SIGNATURE_REQUEST_ROUTE_UNIVERSAL_IDENTIFIER,
+      ids.ASSINAFY_WEBHOOK_ROUTE_UNIVERSAL_IDENTIFIER,
       ids.PROPOSE_SIGNATURE_REQUEST_TOOL_UNIVERSAL_IDENTIFIER,
       ids.GET_DOCUMENT_STATUS_TOOL_UNIVERSAL_IDENTIFIER,
       ids.SEND_FOR_SIGNATURE_WORKFLOW_ACTION_UNIVERSAL_IDENTIFIER,
@@ -130,7 +131,15 @@ describe('install of the simulation build', () => {
       {
         name: 'assinafy',
         oauth: {
-          scopes: ['documents:read', 'documents:write', 'templates:read', 'templates:write', 'account:read', 'offline_access'],
+          scopes: [
+            'documents:read',
+            'documents:write',
+            'templates:read',
+            'templates:write',
+            'account:read',
+            'webhooks:write',
+            'offline_access',
+          ],
           isClientCredentialsConfigured: false,
         },
       },

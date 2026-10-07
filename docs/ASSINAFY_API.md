@@ -1305,6 +1305,429 @@ Responses:
 }
 ```
 
+### `webhooks.listEndpoints()`
+
+`GET /v1/accounts/{accountId}/webhooks/endpoints`
+
+Returns the unwrapped list of endpoints, oldest first. The cron reads it once per Assinafy workspace while webhooks are on, to find the endpoint it stored and any endpoint at its own route it no longer knows. OAuth tokens need `account:read`.
+
+Parameters:
+
+```json
+[
+  {
+    "$ref": "#/components/parameters/AccountId"
+  }
+]
+```
+
+Responses:
+
+```json
+{
+  "200": {
+    "description": "The endpoints",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Envelope"
+            },
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WebhookEndpoint"
+                  }
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "401": {
+    "$ref": "#/components/responses/Unauthorized"
+  },
+  "500": {
+    "$ref": "#/components/responses/ServerError"
+  }
+}
+```
+
+### `webhooks.createEndpoint(payload)`
+
+`POST /v1/accounts/{accountId}/webhooks/endpoints`
+
+Returns the created endpoint. The app sends `name: "Twenty"`, the route URL with its `token` query parameter, the contact email from `ASSINAFY_WEBHOOK_EMAIL`, the events in `WEBHOOK_EVENTS` and `signing_enabled: true` only with the API key. A 403 (no free endpoint slot, or a connection without `webhooks:write`) is logged and the workspace keeps polling. OAuth tokens need `webhooks:write`.
+
+Parameters:
+
+```json
+[
+  {
+    "$ref": "#/components/parameters/AccountId"
+  }
+]
+```
+
+Request body:
+
+```json
+{
+  "required": true,
+  "content": {
+    "application/json": {
+      "schema": {
+        "required": [
+          "url",
+          "email",
+          "events"
+        ],
+        "properties": {
+          "url": {
+            "description": "URL that receives the events (http or https).",
+            "type": "string",
+            "format": "uri",
+            "example": "https://example.com/webhooks/assinafy"
+          },
+          "email": {
+            "description": "Contact email for delivery-failure notices.",
+            "type": "string",
+            "format": "email",
+            "example": "ops@example.invalid"
+          },
+          "events": {
+            "description": "Event types to deliver (see `GET /v1/webhooks/event-types`).",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "document_ready",
+              "signer_signed_document"
+            ]
+          },
+          "name": {
+            "description": "Label to tell endpoints apart.",
+            "type": "string",
+            "example": "ERP"
+          },
+          "is_active": {
+            "description": "Whether events are delivered. Defaults to `true`.",
+            "type": "boolean",
+            "example": true
+          },
+          "signing_enabled": {
+            "description": "Sign deliveries with a Standard Webhooks signature. Defaults to `false`.",
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "type": "object"
+      }
+    }
+  }
+}
+```
+
+Responses:
+
+```json
+{
+  "200": {
+    "description": "The created endpoint",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Envelope"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/WebhookEndpoint"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "400": {
+    "$ref": "#/components/responses/ValidationError"
+  },
+  "401": {
+    "$ref": "#/components/responses/Unauthorized"
+  },
+  "403": {
+    "$ref": "#/components/responses/Forbidden",
+    "description": "The account already has as many endpoints as its plan allows."
+  },
+  "500": {
+    "$ref": "#/components/responses/ServerError"
+  }
+}
+```
+
+### `webhooks.updateEndpoint(endpointId, patch)`
+
+`PUT /v1/accounts/{accountId}/webhooks/endpoints/{endpointId}`
+
+Returns the updated endpoint. Sent only when the stored endpoint drifted: another route URL, another contact email, other events or deactivated; the app sends `url`, `email`, `events` and `is_active: true`. OAuth tokens need `webhooks:write`.
+
+Parameters:
+
+```json
+[
+  {
+    "$ref": "#/components/parameters/AccountId"
+  },
+  {
+    "name": "endpointId",
+    "in": "path",
+    "description": "The webhook endpoint ID.",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
+```
+
+Request body:
+
+```json
+{
+  "required": true,
+  "content": {
+    "application/json": {
+      "schema": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://example.com/webhooks/assinafy"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ops@example.invalid"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "document_ready"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "example": "ERP"
+          },
+          "is_active": {
+            "type": "boolean",
+            "example": false
+          },
+          "signing_enabled": {
+            "type": "boolean",
+            "example": true
+          }
+        },
+        "type": "object"
+      }
+    }
+  }
+}
+```
+
+Responses:
+
+```json
+{
+  "200": {
+    "description": "The updated endpoint",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Envelope"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/WebhookEndpoint"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "400": {
+    "$ref": "#/components/responses/ValidationError"
+  },
+  "401": {
+    "$ref": "#/components/responses/Unauthorized"
+  },
+  "404": {
+    "$ref": "#/components/responses/NotFound"
+  },
+  "500": {
+    "$ref": "#/components/responses/ServerError"
+  }
+}
+```
+
+### `webhooks.deleteEndpoint(endpointId)`
+
+`DELETE /v1/accounts/{accountId}/webhooks/endpoints/{endpointId}`
+
+No body. Frees the slot. Used when webhooks are turned off, on uninstall, and for endpoints at the app's route that are not the stored one. Endpoints at other URLs are never deleted. OAuth tokens need `webhooks:write`.
+
+Parameters:
+
+```json
+[
+  {
+    "$ref": "#/components/parameters/AccountId"
+  },
+  {
+    "name": "endpointId",
+    "in": "path",
+    "description": "The webhook endpoint ID.",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
+```
+
+Responses:
+
+```json
+{
+  "200": {
+    "description": "Endpoint deleted",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Envelope"
+            },
+            {
+              "properties": {
+                "data": {
+                  "type": "array",
+                  "items": [],
+                  "example": []
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "401": {
+    "$ref": "#/components/responses/Unauthorized"
+  },
+  "404": {
+    "$ref": "#/components/responses/NotFound"
+  },
+  "500": {
+    "$ref": "#/components/responses/ServerError"
+  }
+}
+```
+
+### `webhooks.getEndpointSecret(endpointId)`
+
+`GET /v1/accounts/{accountId}/webhooks/endpoints/{endpointId}/secret`
+
+Returns `{ secret }`, the Standard Webhooks secret (`whsec_` plus the base64 key). Called once, right after an API key creates a signed endpoint; the secret is kept in the app key-value store. Not available to OAuth applications, so endpoints a connection registers are unsigned.
+
+Parameters:
+
+```json
+[
+  {
+    "$ref": "#/components/parameters/AccountId"
+  },
+  {
+    "name": "endpointId",
+    "in": "path",
+    "description": "The webhook endpoint ID.",
+    "required": true,
+    "schema": {
+      "type": "string"
+    }
+  }
+]
+```
+
+Responses:
+
+```json
+{
+  "200": {
+    "description": "The secret",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/Envelope"
+            },
+            {
+              "properties": {
+                "data": {
+                  "$ref": "#/components/schemas/WebhookEndpointSecret"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "400": {
+    "$ref": "#/components/responses/ValidationError",
+    "description": "Signing is not enabled for this endpoint."
+  },
+  "401": {
+    "$ref": "#/components/responses/Unauthorized"
+  },
+  "404": {
+    "$ref": "#/components/responses/NotFound"
+  },
+  "500": {
+    "$ref": "#/components/responses/ServerError"
+  }
+}
+```
+
 ### `oauth.revokeToken({ token, tokenTypeHint, clientId, clientSecret })`
 
 `POST /v1/oauth/revoke`
@@ -2494,10 +2917,241 @@ Responses:
 }
 ```
 
+### `schemas/WebhookEndpoint`
+
+```json
+{
+  "description": "A URL that receives the account's webhook events. Every active endpoint subscribed to an event receives it.",
+  "properties": {
+    "id": {
+      "description": "Endpoint ID.",
+      "type": "string",
+      "example": "65f1c2a9b3e4d5f60718293a4b5c6d7e"
+    },
+    "name": {
+      "description": "Label to tell endpoints apart.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "example": "ERP"
+    },
+    "url": {
+      "description": "URL that receives the events (http or https).",
+      "type": "string",
+      "format": "uri",
+      "example": "https://example.com/webhooks/assinafy"
+    },
+    "email": {
+      "description": "Contact email for delivery-failure notices.",
+      "type": "string",
+      "format": "email",
+      "example": "ops@example.invalid"
+    },
+    "events": {
+      "description": "Event types delivered to this endpoint (see **List webhook event types**).",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "example": [
+        "document_ready",
+        "signer_signed_document"
+      ]
+    },
+    "is_active": {
+      "description": "Whether events are delivered to this endpoint.",
+      "type": "boolean",
+      "example": true
+    },
+    "signing_enabled": {
+      "description": "Whether deliveries carry a `webhook-signature` header (see **Webhook Payloads → Verifying signatures**).",
+      "type": "boolean",
+      "example": true
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "example": "2026-10-01T12:00:00Z"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "example": "2026-10-01T12:00:00Z"
+    }
+  },
+  "type": "object"
+}
+```
+
+### `schemas/WebhookEndpointSecret`
+
+```json
+{
+  "description": "An endpoint's signing secret.",
+  "properties": {
+    "secret": {
+      "description": "Standard Webhooks secret: `whsec_` followed by the base64-encoded key.",
+      "type": "string",
+      "example": "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
+    }
+  },
+  "type": "object"
+}
+```
+
+### `schemas/WebhookEvent`
+
+```json
+{
+  "description": "Body of every webhook delivery. Timestamps in the body (`created_at`, and the `*_at` fields of `subject`/`object`) are Unix timestamps in seconds, not the ISO strings the REST responses use. `subject` and `object` are serialized from their current state when the delivery is sent.",
+  "required": [
+    "id",
+    "event",
+    "created_at",
+    "subject",
+    "object",
+    "account_id"
+  ],
+  "properties": {
+    "id": {
+      "description": "ID of the activity that produced the event.",
+      "type": "integer",
+      "example": 184467
+    },
+    "event": {
+      "description": "Event type. See **List webhook event types**.",
+      "type": "string",
+      "example": "signer_viewed_document"
+    },
+    "message": {
+      "description": "Reserved; currently always `null`.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "example": null
+    },
+    "payload": {
+      "description": "Event-specific parameters; keys vary per event.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": true
+    },
+    "origin": {
+      "description": "Where the action came from, when it was triggered by a request.",
+      "properties": {
+        "ip": {
+          "type": "string",
+          "example": "203.0.113.7"
+        },
+        "user-agent": {
+          "type": "string",
+          "example": "Mozilla/5.0"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "created_at": {
+      "description": "When the event was recorded (Unix timestamp, seconds).",
+      "type": "integer",
+      "example": 1790000000
+    },
+    "subject": {
+      "description": "Who performed the action: a `User`, `Signer` or `Account`, plus a `type` property naming it.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "object": {
+      "description": "What the action was performed on: a `Document`, `Signer` or `Template` with its relations expanded, plus a `type` property naming it.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "account_id": {
+      "description": "ID of the account that owns the event.",
+      "type": "string",
+      "example": "65f1c2a9b3e4d5f6"
+    }
+  },
+  "type": "object"
+}
+```
+
+## Webhook deliveries
+
+Assinafy `POST`s every subscribed event to the endpoint URL, `<functions URL>/assinafy/webhook?token=<token>`, with the `schemas/WebhookEvent` body. The app subscribes to `signer_signed_document`, `signer_rejected_document`, `user_rejected_document`, `document_ready` and `document_processing_failed`; each has a `Document` as `object`. Signed endpoints add the Standard Webhooks headers below; the app verifies them with `WebhookVerifier.verifySignature(rawBody, headers)` (HMAC-SHA256 over `{webhook-id}.{webhook-timestamp}.{rawBody}`, five-minute replay window). The app reads only `account_id`, `object.type` and `object.id` and then re-reads the document with `documents.details`; nothing else in the body is trusted or stored.
+
+Headers:
+
+```json
+[
+  {
+    "name": "webhook-id",
+    "in": "header",
+    "required": true,
+    "description": "Message ID: the same on every attempt of this event to this endpoint. Use it to deduplicate retries.",
+    "schema": {
+      "type": "string"
+    },
+    "example": "9f86d081884c7d659a2feaa0c55ad015"
+  },
+  {
+    "name": "webhook-timestamp",
+    "in": "header",
+    "required": true,
+    "description": "Unix timestamp (seconds) of this attempt.",
+    "schema": {
+      "type": "string"
+    },
+    "example": "1790000000"
+  },
+  {
+    "name": "webhook-signature",
+    "in": "header",
+    "required": false,
+    "description": "Sent only when signing is enabled on the endpoint: `v1,<base64 HMAC-SHA256>`. See **Verifying signatures**.",
+    "schema": {
+      "type": "string"
+    },
+    "example": "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE="
+  }
+]
+```
+
+Example body:
+
+```json
+{
+  "id": 184467,
+  "event": "document_ready",
+  "message": null,
+  "payload": null,
+  "origin": null,
+  "account_id": "65f1c2a9b3e4d5f6",
+  "subject": {
+    "type": "Account",
+    "id": "65f1c2a9b3e4d5f6"
+  },
+  "object": {
+    "type": "Document",
+    "id": "9b2f1c0d4e5a6b7c8d9e0f1a2b3c4d5e",
+    "status": "certificated"
+  },
+  "created_at": 1790000000
+}
+```
+
+Responses from the app: `200` with `{ "outcome": "synced" | "ignored" | "failed" }` once the delivery authenticates (a failed re-read is left to the periodic sync), `401` with `{ "outcome": "unauthorized" }` for an unknown token or a missing or invalid signature.
+
 ## Error behavior in the app
 
 `ValidationError` becomes `INVALID_INPUT`. HTTP 401 becomes `RECONNECT_REQUIRED`; 403 with an `insufficient_scope` challenge becomes `INSUFFICIENT_SCOPE`; other 403 responses become `FORBIDDEN`. HTTP 404 is `NOT_FOUND`, and 429 is `RATE_LIMITED`. Other definitive 4xx rejections become `PROVIDER_REJECTED` with a sanitized provider message.
 
 Timeouts, network failures, 5xx and HTTP 408 are `PROVIDER_UNAVAILABLE` for reads and ordinary mutations, and `UNCERTAIN` for billable calls. HTTP 409 and unexpected billable responses also become `UNCERTAIN`. The SENDING record is kept for reconciliation. A confirmed provider send remains successful even if the subsequent Twenty update fails.
 
-The app's seven POST routes expose the `{ ok, ... }` envelope described in [SETUP.md](../SETUP.md#request-flow), with HTTP 200. They do not expose the provider's raw response body. Member-visible messages are selected in Brazilian Portuguese by `get-error-message.util.ts`; persistent status-only messages are selected by `get-status-hints.util.ts`.
+The app's seven member POST routes expose the `{ ok, ... }` envelope described in [SETUP.md](../SETUP.md#request-flow), with HTTP 200. They do not expose the provider's raw response body. Member-visible messages are selected in Brazilian Portuguese by `get-error-message.util.ts`; persistent status-only messages are selected by `get-status-hints.util.ts`.

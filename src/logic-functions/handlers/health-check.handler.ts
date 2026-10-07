@@ -2,9 +2,11 @@ import { type ApplicationHealthCheckResult } from 'twenty-sdk/define';
 
 import { listBackgroundCredentials } from 'src/assinafy-client/list-background-credentials';
 import { resolveCredentialAccount } from 'src/assinafy-client/resolve-credential-account';
+import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
 import { type CREDENTIAL_FAILURE_CODES } from 'src/constants/credential-failure-codes';
 import { type AppErrorCode } from 'src/types/app-error-code';
 import { type CreateAssinafyClient } from 'src/types/create-assinafy-client';
+import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
 type FixableCode = (typeof CREDENTIAL_FAILURE_CODES)[number];
@@ -72,6 +74,18 @@ export const healthCheckHandler = async (
         action: isApiKey ? { label: 'Atualizar chave de API' } : { label: 'Reconectar', location: '#general' },
       };
     }
+  }
+
+  if (readWebhookEmail() !== null && (await readWebhookEndpoints()).length === 0) {
+    return {
+      status: 'WARNING',
+      title: 'Os webhooks da Assinafy ainda não estão registrados',
+      description:
+        'O app tenta registrar o endpoint a cada 15 minutos. Se o aviso continuar, confira se o servidor Twenty é ' +
+        'acessível pela internet, se o workspace da Assinafy tem um endpoint de webhook livre (1 no plano gratuito, ' +
+        'até 3 nos pagos) e se a conexão compartilhada foi aprovada com a permissão webhooks:write. Enquanto isso, os ' +
+        'status continuam sendo atualizados a cada 15 minutos.',
+    };
   }
 
   return { status: 'OK' };

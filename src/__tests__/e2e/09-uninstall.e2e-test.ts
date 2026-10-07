@@ -76,6 +76,8 @@ describe('uninstall', () => {
     expect(revokes.every(({ status, tokenTypeHint }) => status === 200 && tokenTypeHint === 'access_token')).toBe(true);
     // Each connection is resolved once: no refresh and no second read.
     expect(log.filter(({ kind }) => kind === 'token')).toEqual([]);
+    // The endpoint the webhooks scenario left registered is removed while the API key still works.
+    expect(await simulator.webhookEndpoints()).toEqual([]);
     const simulatorGrants = await simulator.grants();
     expect(grants.map((id) => simulatorGrants.find((grant) => grant.id === id)?.revoked)).toEqual([false, false, false]);
 

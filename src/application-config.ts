@@ -5,6 +5,7 @@ import {
   ASSINAFY_API_KEY_VARIABLE,
   ASSINAFY_CLIENT_ID_VARIABLE,
   ASSINAFY_CLIENT_SECRET_VARIABLE,
+  ASSINAFY_WEBHOOK_EMAIL_VARIABLE,
 } from 'src/constants/assinafy';
 import {
   APP_DESCRIPTION,
@@ -12,6 +13,7 @@ import {
   APPLICATION_UNIVERSAL_IDENTIFIER,
   ASSINAFY_ACCOUNT_ID_VARIABLE_UNIVERSAL_IDENTIFIER,
   ASSINAFY_API_KEY_VARIABLE_UNIVERSAL_IDENTIFIER,
+  ASSINAFY_WEBHOOK_EMAIL_VARIABLE_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
 
 export default defineApplication({
@@ -51,6 +53,14 @@ export default defineApplication({
       label: 'ID do workspace na Assinafy',
       description:
         'Obrigatório apenas quando a chave de API pertence a um usuário com acesso a mais de um workspace da Assinafy.',
+      isSecret: false,
+      isRequired: false,
+    },
+    [ASSINAFY_WEBHOOK_EMAIL_VARIABLE]: {
+      universalIdentifier: ASSINAFY_WEBHOOK_EMAIL_VARIABLE_UNIVERSAL_IDENTIFIER,
+      label: 'E-mail dos webhooks da Assinafy',
+      description:
+        'Preencha para receber os status das assinaturas na hora, por webhooks da Assinafy; a Assinafy avisa este e-mail quando não consegue entregar um evento. O servidor do Twenty precisa ser acessível pela internet. Deixe em branco para manter apenas a atualização a cada 15 minutos.',
       isSecret: false,
       isRequired: false,
     },

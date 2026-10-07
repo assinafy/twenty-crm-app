@@ -75,6 +75,24 @@ describe.skipIf(!HAS_WORKSPACE_API_KEY)('app routes called with the workspace AP
   });
 });
 
+// Assinafy calls the webhook route without a Twenty session; with no endpoint registered, every delivery is refused
+// before anything is read.
+describe('public webhook route', () => {
+  it.each([
+    ['without a token', ''],
+    ['with an unknown token', '?token=unknown-token'],
+  ])('refuses a delivery %s with HTTP 401', async (_label, query) => {
+    const response = await fetch(`${process.env.TWENTY_API_URL}/s/assinafy/webhook${query}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ event: 'document_ready', account_id: 'acc-1', object: { type: 'Document', id: 'doc-1' } }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ outcome: 'unauthorized' });
+  });
+});
+
 describe('app routes called by a workspace member', () => {
   it('rejects a malformed record id and unknown keys', async () => {
     expect(await callRoute('/s/assinafy/context', USER_TOKEN, { recordId: 'not-a-uuid' })).toEqual({

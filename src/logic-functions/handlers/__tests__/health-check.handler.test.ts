@@ -8,11 +8,15 @@ import {
   buildResolved,
   sharedCredential,
 } from 'src/logic-functions/handlers/__tests__/document-handler-fixtures';
+import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
 import { type CreateAssinafyClient } from 'src/types/create-assinafy-client';
 import { AppFailure } from 'src/utils/app-failure.util';
+import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
 
 vi.mock('src/assinafy-client/list-background-credentials', () => ({ listBackgroundCredentials: vi.fn<typeof listBackgroundCredentials>() }));
 vi.mock('src/assinafy-client/resolve-credential-account', () => ({ resolveCredentialAccount: vi.fn<typeof resolveCredentialAccount>() }));
+vi.mock('src/services/read-webhook-endpoints.service', () => ({ readWebhookEndpoints: vi.fn<typeof readWebhookEndpoints>() }));
+vi.mock('src/utils/read-webhook-email.util', () => ({ readWebhookEmail: vi.fn<typeof readWebhookEmail>() }));
 
 const listCredentials = vi.mocked(listBackgroundCredentials);
 const resolve = vi.mocked(resolveCredentialAccount);
@@ -22,6 +26,34 @@ describe('healthCheckHandler', () => {
   beforeEach(() => {
     listCredentials.mockResolvedValue([apiKeyCredential, sharedCredential]);
     resolve.mockImplementation(async (credential) => buildResolved({}, 'acc-1', credential));
+    vi.mocked(readWebhookEmail).mockReturnValue(null);
+    vi.mocked(readWebhookEndpoints).mockResolvedValue([]);
+  });
+
+  it('warns while webhooks are on and no endpoint is registered', async () => {
+    vi.mocked(readWebhookEmail).mockReturnValue('ops@example.invalid');
+
+    await expect(healthCheckHandler(createClient)).resolves.toMatchObject({
+      status: 'WARNING',
+      title: 'Os webhooks da Assinafy ainda não estão registrados',
+      description: expect.stringContaining('webhooks:write'),
+    });
+  });
+
+  it('is OK once a webhook endpoint is registered', async () => {
+    vi.mocked(readWebhookEmail).mockReturnValue('ops@example.invalid');
+    vi.mocked(readWebhookEndpoints).mockResolvedValue([
+      {
+        accountId: 'acc-1',
+        endpointId: 'ep-1',
+        url: 'https://twenty.example.invalid/s/assinafy/webhook?token=t',
+        email: 'ops@example.invalid',
+        token: 't',
+        secret: null,
+      },
+    ]);
+
+    await expect(healthCheckHandler(createClient)).resolves.toEqual({ status: 'OK' });
   });
 
   it('warns when the workspace has no background credential, pointing at the API key variables', async () => {

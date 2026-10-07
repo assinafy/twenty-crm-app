@@ -1,7 +1,8 @@
 // Local stand-in for Assinafy used by the end-to-end suite: an auto-approving OAuth server plus a /v1 proxy that
-// swaps simulator-issued Bearer tokens for the sandbox API key. Zero dependencies so it can run inside the Twenty
+// swaps simulator-issued Bearer tokens for the sandbox API key. Webhook endpoints, which the sandbox does not serve yet,
+// are emulated in memory, and the suite asks the simulator to deliver signed (Standard Webhooks) events to them. Zero dependencies so it can run inside the Twenty
 // test container with `node assinafy-simulator.mjs`.
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
 import { pathToFileURL } from 'node:url';
 
@@ -12,12 +13,21 @@ const APP_SCOPES = [
   'templates:read',
   'templates:write',
   'account:read',
+  'webhooks:write',
   'offline_access',
 ];
 const CODE_TTL_MS = 60_000;
 const REFRESH_TTL_MS = 30 * 24 * 3600_000;
 const MAX_FORM_BYTES = 1_000_000;
-const DEFAULT_CONFIG = { deny: false, grantedScopes: null, accessTtlSeconds: 3600, revokeAccessEndsGrant: false };
+const DEFAULT_CONFIG = {
+  deny: false,
+  grantedScopes: null,
+  accessTtlSeconds: 3600,
+  revokeAccessEndsGrant: false,
+  // Endpoints per workspace: 1 on the free plan, 3 on paid plans.
+  webhookEndpointLimit: 1,
+};
+const WEBHOOK_PATH = /^\/accounts\/([^/]+)\/webhooks\/endpoints(?:\/([^/]+))?(\/secret)?$/;
 const KNOWN_GRANT_TYPES = ['authorization_code', 'refresh_token'];
 const KNOWN_HINTS = ['access_token', 'refresh_token'];
 // Request headers worth forwarding upstream; credentials and hop-by-hop headers are rebuilt or dropped.
@@ -43,6 +53,9 @@ const SCOPE_ROUTES = [
     scopes: ['documents:write'],
   },
   { methods: /^GET$/, path: /^\/accounts\/[^/]+(\/(theme|logo))?$/, scopes: ['account:read'] },
+  // Signing secrets are not available to OAuth applications, so the /secret routes stay unlisted.
+  { methods: /^GET$/, path: /^\/accounts\/[^/]+\/webhooks\/endpoints(\/[^/]+)?$/, scopes: ['account:read'] },
+  { methods: /^(POST|PUT|DELETE)$/, path: /^\/accounts\/[^/]+\/webhooks\/endpoints(\/[^/]+)?$/, scopes: ['webhooks:write'] },
 ];
 
 const newToken = () => randomBytes(32).toString('base64url');
@@ -61,6 +74,10 @@ const json = (status, body, headers = {}) => ({
 const apiError = (status, message, headers) => json(status, { status, message, data: null }, headers);
 const oauthError = (status, error, description) =>
   json(status, { error, error_description: description }, { 'cache-control': 'no-store' });
+
+const envelope = (data) => json(200, { status: 200, message: '', data });
+const publicEndpoint = ({ secret: _secret, accountId: _accountId, ...endpoint }) => endpoint;
+const newSecret = () => `whsec_${randomBytes(24).toString('base64')}`;
 
 const readBody = async (req) => {
   const chunks = [];
@@ -151,6 +168,7 @@ export const createSimulator = (options) => {
       refreshTokens: new Map(),
       faults: [],
       log: [],
+      webhookEndpoints: new Map(),
     };
   };
   resetState();
@@ -341,6 +359,99 @@ export const createSimulator = (options) => {
     return { status: response.status, headers: replyHeaders, body: response.body ?? undefined };
   };
 
+  const webhookEndpoints = async (req, apiPath) => {
+    const [, encodedAccount, endpointId, secretPath] = WEBHOOK_PATH.exec(apiPath);
+    const accountId = decodeURIComponent(encodedAccount);
+    const own = [...state.webhookEndpoints.values()].filter((endpoint) => endpoint.accountId === accountId);
+    const body = req.method === 'POST' || req.method === 'PUT' ? await parseParams(req) : {};
+    const stamp = new Date(now()).toISOString();
+
+    if (endpointId === undefined) {
+      if (req.method === 'GET') return envelope(own.map(publicEndpoint));
+      if (req.method !== 'POST') return apiError(405, 'Method not allowed');
+      if (own.length >= state.config.webhookEndpointLimit) return apiError(403, 'Webhook endpoint limit reached');
+      if (typeof body.url !== 'string' || typeof body.email !== 'string') return apiError(400, 'url and email are required');
+      if (own.some((endpoint) => endpoint.url === body.url)) return apiError(400, 'Another endpoint uses this url');
+      const endpoint = {
+        id: randomBytes(16).toString('hex'),
+        accountId,
+        name: typeof body.name === 'string' ? body.name : null,
+        url: body.url,
+        email: body.email,
+        events: Array.isArray(body.events) ? body.events : [],
+        is_active: body.is_active !== false,
+        signing_enabled: body.signing_enabled === true,
+        secret: body.signing_enabled === true ? newSecret() : null,
+        created_at: stamp,
+        updated_at: stamp,
+      };
+      state.webhookEndpoints.set(endpoint.id, endpoint);
+
+      return envelope(publicEndpoint(endpoint));
+    }
+
+    const endpoint = state.webhookEndpoints.get(decodeURIComponent(endpointId));
+    if (!endpoint || endpoint.accountId !== accountId) return apiError(404, 'Webhook endpoint not found');
+    if (secretPath) {
+      if (req.method !== 'GET') return apiError(405, 'Method not allowed');
+      return endpoint.secret === null ? apiError(400, 'Signing is not enabled') : envelope({ secret: endpoint.secret });
+    }
+    if (req.method === 'GET') return envelope(publicEndpoint(endpoint));
+    if (req.method === 'DELETE') {
+      state.webhookEndpoints.delete(endpoint.id);
+      return envelope([]);
+    }
+    if (req.method !== 'PUT') return apiError(405, 'Method not allowed');
+    if (typeof body.url === 'string' && own.some((other) => other !== endpoint && other.url === body.url)) {
+      return apiError(400, 'Another endpoint uses this url');
+    }
+    for (const key of ['name', 'url', 'email', 'events', 'is_active']) {
+      if (key in body) endpoint[key] = body[key];
+    }
+    if ('signing_enabled' in body) {
+      endpoint.signing_enabled = body.signing_enabled === true;
+      endpoint.secret = endpoint.signing_enabled ? (endpoint.secret ?? newSecret()) : null;
+    }
+    endpoint.updated_at = stamp;
+
+    return envelope(publicEndpoint(endpoint));
+  };
+
+  // Delivers one event to every active endpoint of the workspace subscribed to it, signed when the endpoint is.
+  // `tamper` signs with another key, to check that the receiver refuses it.
+  const deliver = async ({ event, documentId, accountId = options.accountId, tamper = false }) => {
+    const results = [];
+    for (const endpoint of state.webhookEndpoints.values()) {
+      if (endpoint.accountId !== accountId || !endpoint.is_active || !endpoint.events.includes(event)) continue;
+      const messageId = randomBytes(16).toString('hex');
+      const timestamp = String(Math.floor(now() / 1000));
+      const rawBody = JSON.stringify({
+        id: Math.floor(now() / 1000),
+        event,
+        message: null,
+        payload: null,
+        origin: null,
+        account_id: accountId,
+        subject: { type: 'Account', id: accountId },
+        object: { type: 'Document', id: documentId },
+        created_at: Number(timestamp),
+      });
+      const headers = { 'content-type': 'application/json', 'webhook-id': messageId, 'webhook-timestamp': timestamp };
+      if (endpoint.secret !== null) {
+        const key = tamper ? randomBytes(24) : Buffer.from(endpoint.secret.replace(/^whsec_/, ''), 'base64');
+        headers['webhook-signature'] = `v1,${createHmac('sha256', key).update(`${messageId}.${timestamp}.${rawBody}`).digest('base64')}`;
+      }
+      try {
+        const response = await fetch(endpoint.url, { method: 'POST', headers, body: rawBody });
+        results.push({ endpointId: endpoint.id, status: response.status, body: await response.text() });
+      } catch {
+        results.push({ endpointId: endpoint.id, status: 0, body: '' });
+      }
+    }
+
+    return results;
+  };
+
   const api = async (req, url, entry) => {
     const apiPath = url.pathname.slice('/v1'.length);
     const authorization = String(req.headers.authorization ?? '');
@@ -348,7 +459,7 @@ export const createSimulator = (options) => {
 
     if (!authorization.startsWith('Bearer ')) {
       if (options.apiKey && apiKey !== undefined && sameSecret(apiKey, options.apiKey)) {
-        return forward(req, apiPath, url.search);
+        return WEBHOOK_PATH.test(apiPath) ? webhookEndpoints(req, apiPath) : forward(req, apiPath, url.search);
       }
 
       return invalidToken();
@@ -373,6 +484,7 @@ export const createSimulator = (options) => {
         'www-authenticate': `Bearer error="insufficient_scope", scope="${missing.join(' ')}"`,
       });
     }
+    if (WEBHOOK_PATH.test(apiPath)) return webhookEndpoints(req, apiPath);
     const reply = await forward(req, apiPath, url.search);
 
     return req.method === 'GET' && apiPath === '/accounts' ? filterAccounts(reply, grant.accountId) : reply;
@@ -421,6 +533,12 @@ export const createSimulator = (options) => {
       return json(200, { ok: true });
     }
     if (route === 'GET /__sim/log') return json(200, { entries: state.log });
+    if (route === 'GET /__sim/webhooks') {
+      return json(200, {
+        endpoints: [...state.webhookEndpoints.values()].map(({ secret, ...endpoint }) => ({ ...endpoint, signed: secret !== null })),
+      });
+    }
+    if (route === 'POST /__sim/webhooks/deliver') return json(200, { results: await deliver(body) });
     if (route === 'POST /__sim/faults') {
       const rules = Array.isArray(body.rules) ? body.rules : [];
       for (const rule of rules) {

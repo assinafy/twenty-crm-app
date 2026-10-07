@@ -1,37 +1,21 @@
 import { listBackgroundCredentials } from 'src/assinafy-client/list-background-credentials';
-import { resolveCredentialAccount } from 'src/assinafy-client/resolve-credential-account';
+import { resolveBackgroundAccounts } from 'src/assinafy-client/resolve-background-accounts';
 import { PENDING_UPLOAD_TTL_MS, SYNC_BATCH_SIZE, SYNC_BUDGET_RATIO, SYNC_TIMEOUT_SECONDS } from 'src/constants/limits';
 import { findSyncableAssinafyDocuments } from 'src/data/find-syncable-assinafy-documents';
 import { updateAssinafyDocument } from 'src/data/update-assinafy-document';
 import { purgePendingUploads } from 'src/services/purge-pending-uploads.service';
 import { readPendingUploads } from 'src/services/read-pending-uploads.service';
+import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
+import { reconcileWebhookEndpoints } from 'src/services/reconcile-webhook-endpoints.service';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
-import { type AssinafyCredential } from 'src/types/assinafy-credential';
-import { type CreateAssinafyClient } from 'src/types/create-assinafy-client';
 import { type HandlerContext } from 'src/types/handler-context';
-import { type ResolvedCredential } from 'src/types/resolved-credential';
+import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
 type SyncRunCounts = { found: number; synced: number; failed: number; skipped: number; purged: number };
 
 const warn = (event: string, error: unknown): void => {
   console.warn(`[assinafy] sync-assinafy-documents: ${event}`, { code: toAppError(error, 'read').code });
-};
-
-// One workspaces.list per credential; a failing credential only loses its own documents.
-const resolveAccounts = async (
-  credentials: AssinafyCredential[],
-  createClient: CreateAssinafyClient,
-): Promise<ResolvedCredential[]> => {
-  const resolved: ResolvedCredential[] = [];
-  for (const credential of credentials) {
-    try {
-      resolved.push(await resolveCredentialAccount(credential, createClient));
-    } catch (error) {
-      warn('credential skipped', error);
-    }
-  }
-  return resolved;
 };
 
 export const syncAssinafyDocumentsHandler = async (ctx: HandlerContext): Promise<SyncRunCounts> => {
@@ -43,10 +27,18 @@ export const syncAssinafyDocumentsHandler = async (ctx: HandlerContext): Promise
     ({ createdAt }) => Date.parse(createdAt) + PENDING_UPLOAD_TTL_MS <= startedAt.getTime(),
   );
 
-  // Most runs have nothing to do; listing connections would refresh their tokens for no reason.
-  if (records.length === 0 && !hasExpiredUploads) return counts;
+  // Webhooks are reconciled on every run while they are on, and until the endpoints are removed once turned off.
+  const webhookEmail = readWebhookEmail();
+  const manageWebhooks = webhookEmail !== null || (await readWebhookEndpoints()).length > 0;
 
-  const resolved = await resolveAccounts(await listBackgroundCredentials(), ctx.createAssinafyClient);
+  // Most runs have nothing to do; listing connections would refresh their tokens for no reason.
+  if (records.length === 0 && !hasExpiredUploads && !manageWebhooks) return counts;
+
+  const resolved = await resolveBackgroundAccounts(
+    'sync-assinafy-documents',
+    await listBackgroundCredentials(),
+    ctx.createAssinafyClient,
+  );
   // Stop starting records at a share of the timeout so the usual last record and the purge fit. A run the platform
   // still kills loses nothing: an unwritten record keeps the oldest lastSyncedAt and syncs first on the next run, and
   // the purge resumes from the stored list.
@@ -77,5 +69,8 @@ export const syncAssinafyDocumentsHandler = async (ctx: HandlerContext): Promise
   }
 
   counts.purged = await purgePendingUploads(resolved, ctx.now(), ctx.appCore);
+  if (manageWebhooks) {
+    await reconcileWebhookEndpoints(resolved, webhookEmail).catch((error: unknown) => warn('webhooks failed', error));
+  }
   return counts;
 };

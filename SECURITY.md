@@ -52,10 +52,15 @@ app) pela página de contato da Assinafy.
 - **Campos exclusivos do app:** todos os campos do objeto Documento Assinafy, exceto Nome, só podem ser gravados pelo
   app, então os membros não conseguem forjar status, IDs da Assinafy ou arquivos assinados. Não é possível criar
   registros pela interface.
-- **Nenhuma superfície de entrada:** o app não registra webhooks nem rotas públicas ou de servidor. As rotas aceitam
-  apenas requisições `POST` de membros do workspace autenticados, validam rigorosamente cada entrada e respondem com
-  códigos de erro estáveis; quando a Assinafy recusa uma solicitação, apenas a mensagem dela é repassada, com links,
-  e-mails e números longos ocultados.
+- **Superfície de entrada mínima:** as rotas dos painéis aceitam apenas requisições `POST` de membros do workspace
+  autenticados, validam rigorosamente cada entrada e respondem com códigos de erro estáveis; quando a Assinafy recusa
+  uma solicitação, apenas a mensagem dela é repassada, com links, e-mails e números longos ocultados. A única rota
+  pública, `/assinafy/webhook`, só existe para os webhooks opcionais: ela recusa (HTTP 401) toda entrega sem o token
+  aleatório de 256 bits do endpoint registrado pelo app, comparado em tempo constante, e, nos endpoints assinados (os
+  registrados com a chave de API), sem uma assinatura Standard Webhooks válida dos últimos cinco minutos. Uma entrega
+  aceita apenas faz o app consultar o documento na Assinafy com as credenciais de segundo plano; o conteúdo do evento,
+  que pode ter dados dos signatários e links de assinatura, nunca é guardado nem registrado em log. O token e o segredo
+  de assinatura ficam no armazenamento chave-valor do app, que só ele lê.
 - **Chamadas de saída:** apenas para os endpoints de produção da Assinafy, por HTTPS. Os anexos são baixados apenas
   de URLs `http(s)` que o Twenty devolve para os anexos do próprio registro, com tempo limite de 30 s e limite de 25 MB
   aplicado durante o download, e precisam ser PDFs.

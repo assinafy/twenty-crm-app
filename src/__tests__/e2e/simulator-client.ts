@@ -24,6 +24,20 @@ export type SimGrant = {
   reuseDetected: boolean;
 };
 
+export type SimWebhookEndpoint = {
+  id: string;
+  accountId: string;
+  name: string | null;
+  url: string;
+  email: string;
+  events: string[];
+  is_active: boolean;
+  signing_enabled: boolean;
+  signed: boolean;
+};
+
+export type SimDelivery = { endpointId: string; status: number; body: string };
+
 export type SimFaultRule = {
   method?: string;
   pathRegex: string;
@@ -76,6 +90,15 @@ export const simulator = {
   revokeGrant: (id: string) => simRequest('POST', `/__sim/grants/${id}/revoke`),
   addFaults: (rules: SimFaultRule[]) => simRequest('POST', '/__sim/faults', { rules }),
   clearFaults: () => simRequest('DELETE', '/__sim/faults'),
-  configure: (config: { deny?: boolean; grantedScopes?: string[] | null; accessTtlSeconds?: number }) =>
-    simRequest('POST', '/__sim/config', config),
+  configure: (config: {
+    deny?: boolean;
+    grantedScopes?: string[] | null;
+    accessTtlSeconds?: number;
+    webhookEndpointLimit?: number;
+  }) => simRequest('POST', '/__sim/config', config),
+  // The webhook endpoints the simulator emulates (the sandbox does not serve them yet), with whether each has a secret.
+  webhookEndpoints: async () => (await simRequest<{ endpoints: SimWebhookEndpoint[] }>('GET', '/__sim/webhooks')).endpoints,
+  // Delivers an event about a document to the subscribed endpoints, signed as Assinafy does (or with another key).
+  deliverWebhook: async (event: string, documentId: string, tamper = false) =>
+    (await simRequest<{ results: SimDelivery[] }>('POST', '/__sim/webhooks/deliver', { event, documentId, tamper })).results,
 };

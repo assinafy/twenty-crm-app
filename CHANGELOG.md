@@ -5,6 +5,24 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-07
+
+### Adicionado
+
+- Webhooks opcionais da Assinafy: com o E-mail dos webhooks da Assinafy preenchido, o app registra um endpoint em cada
+  workspace da Assinafy acessado pela chave de API ou por uma conexão compartilhada e atualiza o documento assim que
+  a Assinafy avisa uma assinatura, recusa, cancelamento, conclusão ou falha de processamento. Endpoints registrados
+  com a chave de API são assinados, e cada entrega tem a assinatura conferida. A atualização a cada 15 minutos continua
+  funcionando.
+- A verificação de saúde avisa quando os webhooks estão ativados, mas o endpoint ainda não foi registrado.
+
+### Alterado
+
+- A conexão OAuth solicita também a permissão `webhooks:write`. Conexões existentes continuam enviando; reconecte-as
+  para que possam registrar os webhooks.
+- Desinstalar o app remove o endpoint de webhook que ele registrou.
+- Atualização do `@assinafy/sdk` para a versão 2.6.0.
+
 ## [1.1.0] - 2026-10-07
 
 ### Adicionado
@@ -72,6 +90,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.2.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.2.0
 [1.1.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.1.0
 [1.0.1]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.0.1
 [1.0.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.0.0

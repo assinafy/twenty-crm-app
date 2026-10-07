@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { WebhookVerifier } from '@assinafy/sdk';
+
 import { createSimulator } from 'src/__tests__/e2e/simulator/assinafy-simulator.mjs';
 
 const UPSTREAM_KEY = 'test-api-key-9c1e';
@@ -14,7 +16,8 @@ const CLIENT_SECRET = 'test-client-secret-4b2d';
 const REDIRECT_URI = 'http://localhost:2021/auth/apps/callback';
 const ISSUER = 'http://localhost:4010';
 const ACCOUNT_ID = 'acc-1';
-const ALL_SCOPES = 'documents:read documents:write templates:read templates:write account:read offline_access';
+const ALL_SCOPES =
+  'documents:read documents:write templates:read templates:write account:read webhooks:write offline_access';
 const BINARY = Buffer.from(Array.from({ length: 1024 }, (_, index) => index % 256));
 const SIMULATOR_PATH = fileURLToPath(new URL('../assinafy-simulator.mjs', import.meta.url));
 
@@ -166,7 +169,7 @@ describe('GET /oauth/authorize', () => {
   it.each([
     [{ response_type: 'token' }, 'unsupported_response_type'],
     [{ scope: '' }, 'invalid_scope'],
-    [{ scope: 'documents:read webhooks:write' }, 'invalid_scope'],
+    [{ scope: 'documents:read users:write' }, 'invalid_scope'],
     [{ code_challenge_method: 'plain' }, 'invalid_request'],
     [{ code_challenge: 'too-short' }, 'invalid_request'],
   ])('redirects %o with error %s', async (overrides, error) => {
@@ -211,7 +214,7 @@ describe('POST /v1/oauth/token authorization_code', () => {
       refresh_token: expect.any(String),
       token_type: 'Bearer',
       expires_in: 3600,
-      scope: 'documents:read documents:write templates:read templates:write account:read',
+      scope: 'documents:read documents:write templates:read templates:write account:read webhooks:write',
     });
     expect(await grants()).toEqual([
       {
@@ -730,6 +733,131 @@ describe('createSimulator', () => {
     });
 
     await expect(other.listen(typeof address === 'object' && address ? address.port : 0, '127.0.0.1')).rejects.toThrow('EADDRINUSE');
+  });
+});
+
+const withKey = (path: string, init: RequestInit = {}) =>
+  fetch(`${base}/v1${path}`, {
+    ...init,
+    headers: { 'x-api-key': APP_API_KEY, 'content-type': 'application/json', ...init.headers },
+  });
+const data = async (response: Response) => ((await response.json()) as { data: Record<string, unknown> }).data;
+
+describe('webhook endpoints', () => {
+  const endpointsPath = `/accounts/${ACCOUNT_ID}/webhooks/endpoints`;
+  const create = (body: Record<string, unknown>) => withKey(endpointsPath, { method: 'POST', body: JSON.stringify(body) });
+  const endpointBody = { name: 'Twenty', url: 'http://127.0.0.1:9/hook?token=a', email: 'ops@example.invalid', events: ['document_ready'] };
+
+  it('creates, lists, reads, updates and deletes endpoints in memory, never upstream', async () => {
+    const created = await data(await create({ ...endpointBody, signing_enabled: true }));
+    const id = String(created.id);
+
+    expect(created).toMatchObject({ ...endpointBody, is_active: true, signing_enabled: true });
+    expect(created).not.toHaveProperty('secret');
+    expect(await data(await withKey(endpointsPath))).toEqual([created]);
+    expect(await data(await withKey(`${endpointsPath}/${id}`))).toEqual(created);
+    expect(await data(await withKey(`${endpointsPath}/${id}/secret`))).toEqual({ secret: expect.stringMatching(/^whsec_/) });
+
+    const updated = await data(
+      await withKey(`${endpointsPath}/${id}`, { method: 'PUT', body: JSON.stringify({ email: 'new@example.invalid', signing_enabled: false }) }),
+    );
+    expect(updated).toMatchObject({ email: 'new@example.invalid', signing_enabled: false });
+    expect((await withKey(`${endpointsPath}/${id}/secret`)).status).toBe(400);
+    expect((await withKey(`${endpointsPath}/${id}`, { method: 'PUT', body: JSON.stringify({ signing_enabled: true }) })).status).toBe(200);
+    expect((await withKey(`${endpointsPath}/${id}/secret`)).status).toBe(200);
+
+    expect((await withKey(`${endpointsPath}/${id}`, { method: 'DELETE' })).status).toBe(200);
+    expect((await withKey(`${endpointsPath}/${id}`)).status).toBe(404);
+    expect(upstreamRequests).toEqual([]);
+  });
+
+  it('enforces the plan limit, distinct URLs and required fields', async () => {
+    expect((await create({ name: 'x' })).status).toBe(400);
+    expect((await create(endpointBody)).status).toBe(200);
+    expect((await create({ ...endpointBody, url: 'http://127.0.0.1:9/other' })).status).toBe(403);
+
+    await admin('POST', '/config', { webhookEndpointLimit: 3 });
+    expect((await create(endpointBody)).status).toBe(400);
+    const second = await data(await create({ ...endpointBody, url: 'http://127.0.0.1:9/other' }));
+    expect(
+      (await withKey(`${endpointsPath}/${String(second.id)}`, { method: 'PUT', body: JSON.stringify({ url: endpointBody.url }) })).status,
+    ).toBe(400);
+    expect((await withKey(endpointsPath, { method: 'DELETE' })).status).toBe(405);
+    expect((await withKey(`${endpointsPath}/${String(second.id)}`, { method: 'POST' })).status).toBe(405);
+    expect((await withKey(`${endpointsPath}/${String(second.id)}/secret`, { method: 'POST' })).status).toBe(405);
+    expect((await withKey(`/accounts/acc-2/webhooks/endpoints/${String(second.id)}`)).status).toBe(404);
+  });
+
+  it('lets an OAuth connection with webhooks:write manage endpoints, but never read a signing secret', async () => {
+    const { access_token: token } = await connect();
+    const response = await api(endpointsPath, token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...endpointBody, signing_enabled: true }),
+    });
+    const id = String((await data(response)).id);
+
+    expect(response.status).toBe(200);
+    expect((await api(endpointsPath, token)).status).toBe(200);
+    expect((await api(`${endpointsPath}/${id}/secret`, token)).status).toBe(403);
+
+    const { access_token: limited } = await connect('documents:read account:read');
+    const refused = await api(`${endpointsPath}/${id}`, limited, { method: 'DELETE' });
+    expect(refused.status).toBe(403);
+    expect(refused.headers.get('www-authenticate')).toBe('Bearer error="insufficient_scope", scope="webhooks:write"');
+  });
+
+  it('delivers signed events to subscribed active endpoints, and a tampered signature on request', async () => {
+    const received: Array<{ headers: IncomingMessage['headers']; body: string }> = [];
+    const receiver = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on('data', (chunk: Buffer) => chunks.push(chunk));
+      req.on('end', () => {
+        received.push({ headers: req.headers, body: Buffer.concat(chunks).toString() });
+        res.writeHead(202).end('ok');
+      });
+    });
+    await new Promise<void>((resolve) => receiver.listen(0, '127.0.0.1', resolve));
+    const address = receiver.address();
+    const url = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/hook?token=a`;
+    await admin('POST', '/config', { webhookEndpointLimit: 4 });
+    const signed = await data(await create({ ...endpointBody, url, signing_enabled: true }));
+    await create({ ...endpointBody, url: `${url}&unsigned=1` });
+    await create({ ...endpointBody, url: `${url}&other=1`, events: ['signer_signed_document'] });
+    await create({ ...endpointBody, url: 'http://127.0.0.1:9/inactive', is_active: false });
+    const secret = String((await data(await withKey(`${endpointsPath}/${String(signed.id)}/secret`))).secret);
+
+    try {
+      const { body } = await admin('POST', '/webhooks/deliver', { event: 'document_ready', documentId: 'doc-1' });
+
+      expect(body.results).toEqual([
+        { endpointId: signed.id, status: 202, body: 'ok' },
+        { endpointId: expect.any(String), status: 202, body: 'ok' },
+      ]);
+      const [first, second] = received;
+      expect(JSON.parse(first!.body)).toMatchObject({
+        event: 'document_ready',
+        account_id: ACCOUNT_ID,
+        object: { type: 'Document', id: 'doc-1' },
+      });
+      expect(new WebhookVerifier(secret).verifySignature(first!.body, first!.headers)).toBe(true);
+      expect(second!.headers['webhook-signature']).toBeUndefined();
+
+      await admin('POST', '/webhooks/deliver', { event: 'document_ready', documentId: 'doc-1', tamper: true });
+      expect(new WebhookVerifier(secret).verifySignature(received[2]!.body, received[2]!.headers)).toBe(false);
+      expect((await admin('GET', '/webhooks')).body.endpoints).toHaveLength(4);
+      expect((await admin('GET', '/webhooks')).body.endpoints[0]).toMatchObject({ id: signed.id, signed: true });
+    } finally {
+      await new Promise((resolve) => receiver.close(resolve));
+    }
+  });
+
+  it('reports an endpoint it cannot reach with status 0', async () => {
+    await create({ ...endpointBody, url: 'http://127.0.0.1:9/unreachable' });
+
+    expect((await admin('POST', '/webhooks/deliver', { event: 'document_ready', documentId: 'doc-1' })).body.results).toEqual([
+      { endpointId: expect.any(String), status: 0, body: '' },
+    ]);
   });
 });
 
