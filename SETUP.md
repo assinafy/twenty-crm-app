@@ -25,18 +25,18 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 
 ### Toolchain and code layout
 
-- Node.js 24 LTS, Yarn 4.18 through Corepack (`yarn install --immutable`), TypeScript in strict mode, `twenty-sdk`, `twenty-client-sdk` and `twenty-ui` 2.42.0, `@assinafy/sdk` 2.5.0, vitest and oxlint. Do not add a dependency for what a few lines or an installed package already do.
+- Node.js 24 LTS, Yarn 4.18 through Corepack (`yarn install --immutable`), TypeScript in strict mode, `twenty-sdk`, `twenty-client-sdk` and `twenty-ui` 2.42.0, `@assinafy/sdk` 2.5.2, vitest and oxlint. Do not add a dependency for what a few lines or an installed package already do.
 - Never import the generated `CoreSchema` types: declare the shapes a query needs (shared ones in `src/types/`) and assign the query result to them (`const { people }: { people?: RecordConnection<…> | null } = await core.query(…)`), never cast it, so the code typechecks against both the fresh-install stub and the generated client.
 - One export per file: one entity (`define*` default export), function, component, class or type. Constants files in `src/constants/` group related constants. Keep the folder responsibilities and file suffixes of Architecture → Folders (`*.object.ts`, `*.logic-function.ts`, `*.handler.ts`, `*.service.ts`, `*.util.ts`, `*.front-component.tsx`, …), and import through the `src/` path alias.
 - Reuse what exists: the strict parsers and readers in `src/utils/`, `validateSigners` (shared by the front end and the server), `toAppError`, `toAppResult`, `AppFailure`, the credential resolvers in `src/assinafy-client/` and the record mappers in `src/data/`. Check every caller before changing a shared function.
 - Universal identifiers are UUID v4 values in `src/constants/universal-identifiers.ts`. Never change or reuse one; scaffold new entities with `yarn twenty dev:add` or generate a fresh UUID v4.
 - Front components are rendering shells. Flow logic, validation and message selection go in pure modules under `src/front-components/utils/`, where they are unit-tested.
-- Logic functions return stable error codes, and the front end maps them to pt-BR messages in `src/front-components/utils/get-error-message.util.ts`. Add the code and its message there whenever a handler can produce or store a new one.
+- Logic functions return stable error codes, and the front end maps them to pt-BR messages in `src/front-components/utils/get-error-message.util.ts`. Add the code and its message there whenever a handler can produce or store a new one. Codes stored only in `lastError` (never returned by a route) get their message in `src/front-components/utils/get-status-hints.util.ts` instead.
 - User-facing text is Brazilian Portuguese source text (see User interface language); identifiers, API values, error codes, comments and log lines stay in English.
 
 ### Tests
 
-- Unit tests (`*.test.ts`) live in `__tests__` folders next to the code. Integration suites (`*.integration-test.ts`, Twenty test server) live in `src/__tests__/integration/`, the live suite (`*.live-test.ts`, Assinafy sandbox) in `src/__tests__/live/` and the end-to-end suite in `src/__tests__/e2e/`.
+- Unit tests (`*.test.ts`) live in `__tests__` folders next to the code. Integration suites (`*.integration-test.ts`, Twenty test server) live in `src/__tests__/integration/`, the live suite (`*.live-test.ts`, Assinafy sandbox) in `src/__tests__/live/` and the end-to-end suite (`*.e2e-test.ts`, the app installed on the Twenty test server with the Assinafy simulator) in `src/__tests__/e2e/`.
 - Every behavior change comes with regression coverage. `yarn test:coverage` must keep 100% functions, 95% lines and statements and 90% branches; never skip a test or lower a threshold to make a run pass.
 - Integration tests run only against the test instance on port 2021, never against the development server on 2020 or any other workspace.
 
@@ -52,13 +52,13 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 - Use production Assinafy endpoints only (`ASSINAFY_API_BASE_URL`, `ASSINAFY_AUTHORIZATION_ENDPOINT` and `ASSINAFY_TOKEN_ENDPOINT` in `src/constants/assinafy.ts`). Only tests may pass another base URL to `createAssinafyClientFactory`. The live suite runs against the sandbox and stays fail-closed for any other host.
 - The connection provider requests `documents:read documents:write templates:read templates:write account:read offline_access` with PKCE and form-encoded token requests, and declares no `revokeEndpoint`: the disconnect and uninstall hooks revoke available access tokens with the client credentials. Full authorization removal also requires revocation in Assinafy Connected apps. `ASSINAFY_CLIENT_ID` and `ASSINAFY_CLIENT_SECRET` stay optional so API-key workspaces keep working.
 - Credentials (details in Architecture → Credential resolution): interactive calls use the member's personal connection, then shared connections, then the API key; background work (cron, workflow, health check) uses the API key and shared connections only. A send uses only the first interactive candidate. If Twenty cannot list connections, fail with `PROVIDER_UNAVAILABLE`, never fall back to the API key. A mutating handler never switches credentials after its first Assinafy call.
-- Money paths: always estimate before sending, show the estimate and require the member's confirmation. Re-estimate immediately before the billable call and compare credits in cents and documents exactly (`assertEstimateUnchanged`). Workflows compare against `maxCredits` (0 means plan documents only).
+- Money paths: always estimate before sending, show the estimate and require the member's confirmation. Re-estimate immediately before the billable call and compare credits in cents and documents exactly (`assertEstimateUnchanged`). Workflows compare against `maxCredits` (0 means plan documents only). Twenty re-runs a failed workflow step with `retryCount` 0, so the workflow action relies on its deadline check before the billable call and on `findPreviousAttempt`, not on the retry count. Every send, from a member or a workflow, refuses to start its billable call when the call could outlive the function timeout.
 - Never retry a billable call (`assignments.create`, `documents.createFromTemplate`, `assignments.resendNotification`), automatically or by falling through to another credential. Map its failures with `toAppError(error, 'billable')`: network errors, timeouts, 5xx, 408 and 409 are `UNCERTAIN`, and the record is kept for reconciliation. Claim the `SENDING` record (unique `requestId`) before the billable call, and never report a confirmed send as failed because a later Twenty write failed.
-- Never delete an Assinafy document that may have been assigned: discard and purge only unsent drafts of the same Assinafy workspace that no record references.
+- Never delete an Assinafy document that may have been assigned: discard and purge only uploads that Assinafy still reports as unsent drafts (or unassigned uploads whose processing failed) of the same Assinafy workspace and that no record references, except a record whose send ended `FAILED`.
 - Routes are `POST`, require a signed-in member, parse input strictly and always answer HTTP 200 with the `{ ok, ... }` envelope from `toAppResult`; they never answer 401.
 - Pass Assinafy messages through `sanitizeProviderMessage` before they reach the UI. Never store signing links or CPF/CNPJ numbers in Twenty.
 - Follow the token policy (Architecture → Token policy): member-visible reads and the creation of the `SENDING` record use `userCore`; status and sync writes, signed-file uploads, the cron and workflows run as the application. Every `assinafyDocument` field except `name` stays application-writable only.
-- The app uses no Assinafy webhooks and exposes no public endpoints; statuses are polled.
+- The app uses no Assinafy webhooks and exposes no public endpoints; statuses are polled. Assinafy allows one webhook endpoint per workspace (up to 3 on paid plans), which a customer's other integrations may already use, and `@assinafy/sdk` 2.5.2 does not cover the webhook endpoint API (`/accounts/{accountId}/webhooks/endpoints`, signed deliveries); polling works on every plan.
 
 ### Documentation
 
@@ -79,6 +79,7 @@ yarn build
 yarn verify              # lint, emails, coverage, typecheck and build in one run
 yarn test:integration    # test instance on port 2021 only
 yarn test:live           # optional, Assinafy sandbox, needs .env
+yarn test:e2e            # optional, test instance on port 2021 plus the simulator, needs .env
 ```
 
 Report a suite that could not run (no Docker, no test instance, no sandbox credentials) separately from a failing assertion.

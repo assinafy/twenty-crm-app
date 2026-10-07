@@ -5,7 +5,6 @@ import {
   DAY_MS,
   MAX_NAME_LENGTH,
   SEND_LEASE_MS,
-  SEND_TIMEOUT_SECONDS,
 } from 'src/constants/limits';
 import { findAssinafyDocumentByRequestId } from 'src/data/find-assinafy-document-by-request-id';
 import { findAttachmentFile } from 'src/data/find-attachment-file';
@@ -27,6 +26,7 @@ import { type WorkflowSendInput } from 'src/types/workflow-send-input';
 import { AppFailure } from 'src/utils/app-failure.util';
 import { assertWithinCreditLimit } from 'src/utils/assert-within-credit-limit.util';
 import { describeWorkflowError } from 'src/utils/describe-workflow-error.util';
+import { getSendDeadline } from 'src/utils/get-send-deadline.util';
 import { invalidInput } from 'src/utils/invalid-input.util';
 import { parseWorkflowSendInput } from 'src/utils/parse-workflow-send-input.util';
 import { toAppResult } from 'src/utils/to-app-result.util';
@@ -40,8 +40,6 @@ type WorkflowSendOutput = {
   errorMessage: string | null;
 };
 
-// Twenty starts the function timer before the handler runs; this margin covers that start.
-const DEADLINE_MARGIN_MS = 10_000;
 const PREVIOUS_ATTEMPT_MESSAGE =
   'Uma tentativa anterior pode ter enviado esta solicitação. Confira na Assinafy antes de executar novamente.';
 
@@ -129,7 +127,7 @@ export const sendForSignatureWorkflowHandler = async (
   ctx: HandlerContext,
   retryCount: number,
 ): Promise<WorkflowSendOutput> => {
-  const deadlineMs = ctx.now().getTime() + SEND_TIMEOUT_SECONDS * 1000 - DEADLINE_MARGIN_MS;
+  const deadlineMs = getSendDeadline(ctx.now());
 
   // Twenty passes a retry count only to job-runner triggers, never to workflow steps (see the previous-attempt check
   // below); kept in case this function ever runs through one.

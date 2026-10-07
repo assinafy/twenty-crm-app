@@ -5,6 +5,25 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-07
+
+### Adicionado
+
+- Signatários com certificado digital aceitam o CNPJ alfanumérico (14 caracteres, com letras nos 12 primeiros).
+- A aba Assinaturas e o painel do Documento Assinafy explicam quando a função do membro no Twenty não permite ver
+  Documentos Assinafy.
+
+### Alterado
+
+- Um envio sem confirmação da Assinafy aparece como aviso, com o título "Confira na Assinafy antes de enviar de novo".
+- Atualização do `@assinafy/sdk` para a versão 2.5.2.
+
+### Corrigido
+
+- O envio feito por um membro não inicia a chamada cobrada quando ela não teria tempo de terminar antes do limite de
+  execução; nada é enviado e o registro termina como falha.
+- Mensagens da Assinafy ocultam CNPJs alfanuméricos.
+
 ## [1.0.1] - 2026-10-05
 
 ### Corrigido
@@ -53,4 +72,6 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.1.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.1.0
+[1.0.1]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.0.1
 [1.0.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.0.0

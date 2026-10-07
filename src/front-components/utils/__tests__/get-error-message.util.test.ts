@@ -132,6 +132,9 @@ describe('getErrorMessage', () => {
     expect(getErrorMessage({ code: 'FORBIDDEN', details: { reason: 'member_permission' } }).message.message).toBe(
       'Sua função no Twenty não permite alterar este documento.',
     );
+    expect(getErrorMessage({ code: 'FORBIDDEN', details: { reason: 'member_read_permission' } }).message.message).toBe(
+      'Sua função no Twenty não permite ver Documentos Assinafy. Peça a um administrador para liberar a leitura desse objeto.',
+    );
     expect(getErrorMessage({ code: 'FORBIDDEN', details: { reason: 'other' } }).message.message).toBe(
       'Sua conexão com a Assinafy não tem acesso a este documento ou workspace.',
     );

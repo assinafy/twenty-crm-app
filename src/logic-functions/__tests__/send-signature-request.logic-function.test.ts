@@ -55,6 +55,7 @@ describe('send-signature-request logic function', () => {
         expectedTotalCredits: 0.45,
         expectedDocuments: 1,
         assinafyDocumentId: 'doc-1',
+        deadlineMs: ctx.now().getTime() + (SEND_TIMEOUT_SECONDS - 10) * 1000,
       }),
     );
   });

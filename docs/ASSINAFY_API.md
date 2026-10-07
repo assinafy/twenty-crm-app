@@ -26,7 +26,7 @@ The WhatsApp phone is omitted for email invitations. A certificate signer additi
 {"government_id":"11144477735"}
 ```
 
-The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification uses `["Email"]`; WhatsApp verification uses `["Whatsapp"]`; certificate verification accepts either channel. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing.
+The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification sends `verification_method: "Email"` with `notification_methods: ["Email"]`; WhatsApp verification sends `"Whatsapp"` with `["Whatsapp"]`; certificate verification (`"DigitalCertificate"`, A1 or A3 certificate media chosen by the signer at signing time) takes either channel, chosen by the member. A CNPJ has 14 characters and may contain letters; the app sends it upper-cased without punctuation. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing.
 
 PDF estimate:
 
@@ -487,6 +487,10 @@ Request body:
             "format": "email"
           },
           "whatsapp_phone_number": {
+            "type": "string"
+          },
+          "government_id": {
+            "description": "Signer's CPF (11 digits) or CNPJ (14 characters; may be alphanumeric). Formatting is accepted and the value is normalized on save.",
             "type": "string"
           }
         },
@@ -2291,6 +2295,11 @@ Responses:
       "nullable": true
     },
     "whatsapp_phone_number": {
+      "type": "string",
+      "nullable": true
+    },
+    "government_id": {
+      "description": "Signer's normalized CPF (11 digits) or CNPJ (14 characters; may be alphanumeric).",
       "type": "string",
       "nullable": true
     },

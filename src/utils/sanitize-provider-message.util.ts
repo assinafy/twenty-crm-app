@@ -5,6 +5,8 @@ const URL_PATTERN = /\b(?:https?:\/\/|www\.)\S+/gi;
 // label must start with a letter, so a CNPJ such as 12.345.678/0001-90 is left to the number rule.
 const DOMAIN_PATH_PATTERN = /\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z][a-z0-9-]*\/\S*/gi;
 const EMAIL_PATTERN = /[^\s@]+@[^\s@]+\.[^\s@]+/g;
+// Alphanumeric CNPJ (12 letters or digits, then 2 check digits); the number rule misses those with few digits.
+const ALPHANUMERIC_CNPJ_PATTERN = /\b[0-9A-Z]{2}(?:\.?[0-9A-Z]{3}){2}\/?[0-9A-Z]{4}-?\d{2}\b/gi;
 // Phones, CPF/CNPJ and similar ids, with the separators people type inside them.
 const NUMBER_PATTERN = /[+(]?\d(?:[\d.\-/ ()]*\d)?/g;
 // Landlines with DDD have 10 digits; anything shorter (dates, CEPs, counts) stays readable.
@@ -19,6 +21,7 @@ export const sanitizeProviderMessage = (message: string): string => {
     .replace(EMAIL_PATTERN, '[e-mail]')
     .replace(URL_PATTERN, '[link]')
     .replace(DOMAIN_PATH_PATTERN, '[link]')
+    .replace(ALPHANUMERIC_CNPJ_PATTERN, '[número]')
     .replace(NUMBER_PATTERN, (match) =>
       match.replace(/\D/g, '').length >= MIN_REDACTED_DIGITS ? '[número]' : match,
     )

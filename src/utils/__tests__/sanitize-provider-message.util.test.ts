@@ -47,6 +47,12 @@ describe('sanitizeProviderMessage', () => {
     );
   });
 
+  it('redacts alphanumeric CNPJs, with or without separators', () => {
+    expect(sanitizeProviderMessage('CNPJ 12.ABC.345/01DE-35 or 12abc34501de35 is invalid')).toBe(
+      'CNPJ [número] or [número] is invalid',
+    );
+  });
+
   it('redacts landlines with DDD (10 digits)', () => {
     expect(sanitizeProviderMessage('Call (11) 3333-4444 or 1133334444')).toBe('Call [número] or [número]');
   });

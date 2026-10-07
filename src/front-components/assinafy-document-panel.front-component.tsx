@@ -24,12 +24,12 @@ import { confirmResend } from 'src/front-components/utils/confirm-resend.util';
 import { createExclusiveRunner } from 'src/front-components/utils/create-exclusive-runner.util';
 import { getDocumentActions } from 'src/front-components/utils/get-document-actions.util';
 import { getMethodLabel } from 'src/front-components/utils/get-method-label.util';
-import { getPanelError } from 'src/front-components/utils/get-panel-error.util';
 import { getSignerStatus } from 'src/front-components/utils/get-signer-status.util';
 import { getStatusHints } from 'src/front-components/utils/get-status-hints.util';
 import { isPanelStale } from 'src/front-components/utils/is-panel-stale.util';
 import { removeAssinafyDocument } from 'src/front-components/utils/remove-assinafy-document.util';
 import { runResendFlow } from 'src/front-components/utils/run-resend-flow.util';
+import { toLoadError } from 'src/front-components/utils/to-load-error.util';
 import { type AppError } from 'src/types/app-error';
 import { type AppResult } from 'src/types/app-result';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
@@ -55,13 +55,13 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
   const [loaded, setLoaded] = useState<{ version: number; record: AssinafyDocumentRecord | null } | null>(null);
   // The last action's error, kept apart from a failed record read so the read never replaces it.
   const [error, setError] = useState<AppError | null>(null);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadError, setLoadError] = useState<AppError | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [runExclusive] = useState(() => createExclusiveRunner(() => setError({ code: 'INTERNAL', message: '' })));
   const autoRefreshed = useRef(false);
 
   const retryLoad = useCallback(() => {
-    setLoadFailed(false);
+    setLoadError(null);
     setVersion((count) => count + 1);
   }, []);
 
@@ -106,7 +106,7 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
         }
 
         setLoaded({ version, record });
-        setLoadFailed(false);
+        setLoadError(null);
 
         // Once per mount, so a refresh that cannot sync (e.g. not connected) does not loop.
         if (record && !autoRefreshed.current && isPanelStale(record, new Date())) {
@@ -114,11 +114,11 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
           refresh();
         }
       },
-      (loadError: unknown) => {
-        console.error('[assinafy] loading the document failed', { name: errorName(loadError) });
+      (failure: unknown) => {
+        console.error('[assinafy] loading the document failed', { name: errorName(failure) });
 
         if (active) {
-          setLoadFailed(true);
+          setLoadError(toLoadError(failure));
           // Unlocks the actions on the last record read, so Refresh can try again.
           setLoaded((previous) => previous && { ...previous, version });
         }
@@ -130,7 +130,8 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
     };
   }, [recordId, version, refresh]);
 
-  const shownError = getPanelError(error, loadFailed);
+  // An action's result (UNCERTAIN, COST_CHANGED, ...) outranks a failed record read after it.
+  const shownError = error ?? loadError;
 
   if (loaded === null) {
     return (

@@ -13,6 +13,8 @@ import { SendFlow } from 'src/front-components/components/send-flow';
 import { SignedDownloads } from 'src/front-components/components/signed-downloads';
 import { StatusTag } from 'src/front-components/components/status-tag';
 import { openAssinafyDocument } from 'src/front-components/utils/open-assinafy-document.util';
+import { toLoadError } from 'src/front-components/utils/to-load-error.util';
+import { type AppError } from 'src/types/app-error';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
 import { formatDate } from 'src/utils/format-date.util';
 import { errorName } from 'src/utils/error-name.util';
@@ -32,15 +34,17 @@ const SignaturesTab = ({ recordId }: { recordId: string }) => {
   const [sending, setSending] = useState(false);
   const [version, setVersion] = useState(0);
   // Each result remembers the version it answers; the previous list stays visible while a reload runs.
-  const [loaded, setLoaded] = useState<{ version: number; documents: AssinafyDocumentRecord[] | null } | null>(null);
+  const [loaded, setLoaded] = useState<{ version: number; documents: AssinafyDocumentRecord[] | AppError } | null>(
+    null,
+  );
 
   useEffect(() => {
     let active = true;
-    const settle = (documents: AssinafyDocumentRecord[] | null) => active && setLoaded({ version, documents });
+    const settle = (documents: AssinafyDocumentRecord[] | AppError) => active && setLoaded({ version, documents });
 
     void findRecordDocuments(new CoreApiClient(), recordId).then(settle, (error: unknown) => {
       console.error('[assinafy] listing record documents failed', { name: errorName(error) });
-      settle(null);
+      settle(toLoadError(error));
     });
 
     return () => {
@@ -82,8 +86,8 @@ const SignaturesTab = ({ recordId }: { recordId: string }) => {
       </div>
       {loaded === null ? (
         <LoadingStatus />
-      ) : loaded.documents === null ? (
-        <ErrorCallout error={{ code: 'INTERNAL', message: '' }} action={{ label: t('Tentar novamente'), onClick: reload }} />
+      ) : !Array.isArray(loaded.documents) ? (
+        <ErrorCallout error={loaded.documents} action={{ label: t('Tentar novamente'), onClick: reload }} />
       ) : loaded.documents.length === 0 ? (
         <p style={FIELD_STYLES.muted}>
           {t(

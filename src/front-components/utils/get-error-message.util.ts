@@ -87,7 +87,7 @@ const INPUT_MESSAGES: Record<string, MessageDescriptor> = {
   'signers.phone:duplicate': msg('Signatário {number}: este WhatsApp já é usado por outro signatário.'),
   'signers.phone': msg('Signatário {number}: informe o WhatsApp com + e o código do país (de 8 a 15 dígitos).'),
   'signers.governmentId': msg(
-    'Signatário {number}: informe o CPF (11 dígitos) ou o CNPJ (14 dígitos) do titular do certificado.',
+    'Signatário {number}: informe o CPF (11 dígitos) ou o CNPJ (14 caracteres) do titular do certificado.',
   ),
   'signers.roleId:mismatch': TEMPLATE_CHANGED,
   'signers.roleId': msg('Cada papel do modelo precisa de um signatário diferente.'),
@@ -157,6 +157,14 @@ export const getErrorMessage = (error: {
         return {
           message: msg(
             'Sua função no Twenty não permite criar Documentos Assinafy. Peça a um administrador para liberar a edição desse objeto.',
+          ),
+        };
+      }
+
+      if (details.reason === 'member_read_permission') {
+        return {
+          message: msg(
+            'Sua função no Twenty não permite ver Documentos Assinafy. Peça a um administrador para liberar a leitura desse objeto.',
           ),
         };
       }

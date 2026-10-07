@@ -5,6 +5,7 @@ import { SEND_TIMEOUT_SECONDS } from 'src/constants/limits';
 import { SEND_SIGNATURE_REQUEST_ROUTE_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { toMemberResult } from 'src/logic-functions/utils/to-member-result.util';
 import { sendSignatureRequest } from 'src/services/send-signature-request.service';
+import { getSendDeadline } from 'src/utils/get-send-deadline.util';
 import { parseSendSignatureRequestInput } from 'src/utils/parse-send-signature-request-input.util';
 
 export default defineLogicFunction({
@@ -15,6 +16,9 @@ export default defineLogicFunction({
   httpRouteTriggerSettings: { path: '/assinafy/send', httpMethod: 'POST', isAuthRequired: true },
   handler: (event: RoutePayload, context: LogicFunctionExecutionContext) =>
     toMemberResult('send-signature-request', context, (ctx) =>
-      sendSignatureRequest(ctx, parseSendSignatureRequestInput(event.body, ctx.now())),
+      sendSignatureRequest(ctx, {
+        ...parseSendSignatureRequestInput(event.body, ctx.now()),
+        deadlineMs: getSendDeadline(ctx.now()),
+      }),
     ),
 });

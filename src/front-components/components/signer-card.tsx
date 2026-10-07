@@ -113,7 +113,7 @@ export const SignerCard = ({ signer, index, roleName, contacts, removable, disab
         <TextInput
           label={t('CPF ou CNPJ do titular do certificado')}
           value={signer.governmentId}
-          hint={t('Informe os 11 dígitos do CPF ou os 14 dígitos do CNPJ.')}
+          hint={t('Informe os 11 dígitos do CPF ou os 14 caracteres do CNPJ (o CNPJ pode ter letras).')}
           disabled={disabled}
           onChange={setText('governmentId')}
         />

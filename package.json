@@ -1,6 +1,6 @@
 {
   "name": "@assinafy/twenty-app",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Envie PDFs e modelos para assinatura eletrônica com a Assinafy e acompanhe cada assinatura pelo Twenty.",
   "license": "MIT",
   "author": "Assinafy",
@@ -54,7 +54,7 @@
     "check:emails": "node scripts/check-no-real-emails.mjs"
   },
   "dependencies": {
-    "@assinafy/sdk": "2.5.0"
+    "@assinafy/sdk": "2.5.2"
   },
   "devDependencies": {
     "@types/node": "^24.13.6",

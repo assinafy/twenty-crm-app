@@ -5,6 +5,6 @@ export type SendSignatureRequestInput = SignatureRequestInput & {
   accountId: string;
   expectedTotalCredits: number;
   expectedDocuments: number;
-  // Epoch milliseconds after which the run may be killed (workflow): no billable call starts that could outlive it.
+  // Epoch milliseconds after which the run may be killed: no billable call starts that could outlive it.
   deadlineMs?: number;
 };

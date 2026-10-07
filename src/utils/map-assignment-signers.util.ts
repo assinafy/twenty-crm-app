@@ -8,7 +8,7 @@ const pick = <T extends string>(allowed: readonly T[], value: unknown): T | null
 
 const timeOf = (entry: INotificationHistoryEntry): number => Date.parse(entry.failed_at ?? entry.sent_at ?? '') || 0;
 
-// The history order is not documented, so the newest entry is chosen by timestamp (ties: the later one).
+// The newest entry is chosen by timestamp (ties: the later one), whatever order Assinafy lists the history in.
 const lastDeliveryFailed = (history: INotificationHistoryEntry[] | null | undefined): boolean => {
   let latest: INotificationHistoryEntry | undefined;
   for (const entry of history ?? []) {

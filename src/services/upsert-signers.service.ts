@@ -16,7 +16,7 @@ const upsertSigner = async (client: AssinafyClient, input: SignerInput): Promise
   const patch: IUpdateSignerPayload = {
     ...(signer.full_name === input.name ? {} : { full_name: input.name }),
     ...(whatsapp === null || signer.whatsapp_phone_number === whatsapp ? {} : { whatsapp_phone_number: whatsapp }),
-    // Assinafy never echoes the government id back, so a certificate signer always gets it.
+    // A certificate signer always gets the id the member just typed, whatever Assinafy holds.
     ...(input.verificationMethod === 'DigitalCertificate' && input.governmentId !== null
       ? { government_id: input.governmentId }
       : {}),
