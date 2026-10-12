@@ -72,7 +72,7 @@ jobs:
 
       - name: Spawn Twenty test instance
         id: twenty
-        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@1e14eecba3a8ad8c72bb09da74f7c95d21f4cf04 # twenty/v2.42.6
+        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@6007ad5a7f6cb676fd8a9ff0c2a86a2e3d4c260e # twenty/v2.45.6
         with:
           twenty-version: ${{ env.TWENTY_VERSION }}
 
