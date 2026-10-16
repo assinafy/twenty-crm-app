@@ -101,6 +101,27 @@ describe('syncAssinafyDocument — records without an Assinafy answer', () => {
 });
 
 describe('syncAssinafyDocument — refresh', () => {
+  it('keeps biometric review open until approval and only then stores the signed PDF', async () => {
+    const { fake, sync } = setup();
+    fake.documents.details.mockResolvedValueOnce(documentDetails({
+      status: 'pending_identity_review',
+      assignment: assignment({ signers: [{
+        id: 'signer-1', full_name: 'Ana', verification_method: 'IdDocumentFaceMatchBasic',
+        email: 'ana@example.invalid', step: 1, notified: true,
+        notification_methods: ['Email'], completed: true, identity_verification_status: 'InReview',
+      }], summary: { signer_count: 1, completed_count: 1, signers: [] } }),
+    }));
+    const reviewing = await sync(pending());
+    expect(reviewing.status).toBe('PENDING_IDENTITY_REVIEW');
+    expect(reviewing.signers?.[0]?.identityVerificationStatus).toBe('InReview');
+    expect(fake.documents.download).not.toHaveBeenCalled();
+
+    fake.documents.details.mockResolvedValueOnce(documentDetails({ status: 'certificated', artifacts: ARTIFACTS }));
+    const signed = await sync(reviewing);
+    expect(signed.status).toBe('CERTIFICATED');
+    expect(fake.documents.download).toHaveBeenCalledExactlyOnceWith('doc-1', 'certificated');
+  });
+
   it('writes the patch built from the document details with the application client', async () => {
     const { fake, ctx, sync } = setup();
 

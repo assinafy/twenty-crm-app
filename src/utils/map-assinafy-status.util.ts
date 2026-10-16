@@ -6,6 +6,7 @@ const DRAFT_STATUSES = ['uploading', 'uploaded', 'metadata_processing', 'metadat
 
 const STATUS_BY_ASSINAFY_STATUS = new Map<string, DocumentStatus>([
   ['pending_signature', DOCUMENT_STATUS.PENDING_SIGNATURE],
+  ['pending_identity_review', DOCUMENT_STATUS.PENDING_IDENTITY_REVIEW],
   ['certificating', DOCUMENT_STATUS.CERTIFICATING],
   ['certificated', DOCUMENT_STATUS.CERTIFICATED],
   ['rejected_by_signer', DOCUMENT_STATUS.REJECTED_BY_SIGNER],

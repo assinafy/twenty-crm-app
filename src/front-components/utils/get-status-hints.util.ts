@@ -11,6 +11,8 @@ export const getStatusHints = (
   const { status, lastError, declineReason } = record;
 
   switch (status) {
+    case 'PENDING_IDENTITY_REVIEW':
+      return [{ message: msg('Todos assinaram. Aprove ou recuse a análise da biometria na Assinafy para finalizar o documento.') }];
     case 'SENDING':
       return [{ message: msg('Enviando para a Assinafy. Atualize em instantes.') }];
     case 'UNCERTAIN':

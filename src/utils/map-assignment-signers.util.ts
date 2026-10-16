@@ -1,6 +1,6 @@
 import { type IAssignment, type INotificationHistoryEntry } from '@assinafy/sdk';
 
-import { NOTIFICATION_METHODS, VERIFICATION_METHODS } from 'src/constants/signer-methods';
+import { IDENTITY_VERIFICATION_STATUSES, NOTIFICATION_METHODS, VERIFICATION_METHODS } from 'src/constants/signer-methods';
 import { type StoredSigner } from 'src/types/stored-signer';
 
 const pick = <T extends string>(allowed: readonly T[], value: unknown): T | null =>
@@ -38,6 +38,9 @@ export const mapAssignmentSigners = (
       // Account signers can carry a number from earlier sends; only a WhatsApp invitation uses it.
       phone: notificationMethod === 'Whatsapp' ? (signer.whatsapp_phone_number ?? null) : null,
       verificationMethod: pick(VERIFICATION_METHODS, signer.verification_method),
+      ...(signer.verification_method === 'IdDocumentFaceMatchBasic'
+        ? { identityVerificationStatus: pick(IDENTITY_VERIFICATION_STATUSES, signer.identity_verification_status) }
+        : {}),
       notificationMethod,
       step: signer.step ?? null,
       notified: signer.notified ?? null,

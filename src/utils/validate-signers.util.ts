@@ -4,6 +4,7 @@ import { type SignerInput } from 'src/types/signer-input';
 import { expectObject } from 'src/utils/expect-object.util';
 import { invalidInput } from 'src/utils/invalid-input.util';
 import { isValidEmail } from 'src/utils/is-valid-email.util';
+import { normalizeCpf } from 'src/utils/normalize-cpf.util';
 import { normalizeGovernmentId } from 'src/utils/normalize-government-id.util';
 import { normalizePhone } from 'src/utils/normalize-phone.util';
 import { readArray } from 'src/utils/read-array.util';
@@ -26,12 +27,13 @@ const readNormalized = (
   normalize: (raw: string) => string | null,
   required: boolean,
   index: number,
+  reason = 'format',
 ): string | null => {
   const text = readString(value, field, { required, index });
   const normalized = text === null ? null : normalize(text);
 
   if (text !== null && normalized === null) {
-    throw invalidInput(field, 'format', index);
+    throw invalidInput(field, reason, index);
   }
 
   return normalized;
@@ -47,9 +49,11 @@ const readSigner = (raw: unknown, index: number, source: 'PDF' | 'TEMPLATE'): Si
   const requestedChannel = readEnum(signer.notificationMethod, 'signers.notificationMethod', NOTIFICATION_METHODS, {
     index,
   });
-  // Assinafy pairs Email and Whatsapp verification with the same channel; a certificate signer may use either.
+  // OTP methods require their own channel; certificate and biometric verification may use either.
   const notificationMethod =
-    verificationMethod === 'DigitalCertificate' ? (requestedChannel ?? 'Email') : verificationMethod;
+    verificationMethod === 'Email' || verificationMethod === 'Whatsapp'
+      ? verificationMethod
+      : (requestedChannel ?? 'Email');
 
   if (requestedChannel !== null && requestedChannel !== notificationMethod) {
     throw invalidInput('signers.notificationMethod', 'mismatch', index);
@@ -61,11 +65,13 @@ const readSigner = (raw: unknown, index: number, source: 'PDF' | 'TEMPLATE'): Si
     index,
   });
   const phone = readNormalized(signer.phone, 'signers.phone', normalizePhone, notificationMethod === 'Whatsapp', index);
-  // Only a certificate signature checks the id; for other methods it is dropped.
+  // A biometric check needs a valid CPF; a certificate accepts CPF or CNPJ. Other methods drop the id.
   const governmentId =
-    verificationMethod === 'DigitalCertificate'
-      ? readNormalized(signer.governmentId, 'signers.governmentId', normalizeGovernmentId, true, index)
-      : null;
+    verificationMethod === 'IdDocumentFaceMatchBasic'
+      ? readNormalized(signer.governmentId, 'signers.governmentId', normalizeCpf, true, index, 'cpf')
+      : verificationMethod === 'DigitalCertificate'
+        ? readNormalized(signer.governmentId, 'signers.governmentId', normalizeGovernmentId, true, index)
+        : null;
 
   const roleId = readString(signer.roleId, 'signers.roleId', {
     max: MAX_ASSINAFY_ID_LENGTH,

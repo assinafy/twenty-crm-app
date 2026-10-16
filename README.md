@@ -6,7 +6,7 @@ Envie PDFs e modelos da Assinafy para assinatura eletrônica a partir de Pessoas
 
 1. **Conectar:** o administrador configura uma aplicação OAuth da Assinafy no servidor Twenty. Um membro adiciona a conexão, entra na Assinafy, escolhe o workspace e aprova as permissões. O Twenty recebe a autorização e mantém os tokens; o app usa o workspace aprovado. Para usar uma chave de API, configure-a nas variáveis do app. Uma conexão compartilhada ou uma chave de API permite acompanhar os documentos em segundo plano.
 2. **Escolher:** abra uma Pessoa, Empresa ou Oportunidade e selecione Enviar para assinatura. Escolha um PDF anexado ao registro ou um modelo pronto do workspace conectado. Preencha o nome, a mensagem opcional, os campos do modelo e o prazo.
-3. **Definir os signatários:** confira os contatos e selecione e-mail, WhatsApp ou certificado digital ICP-Brasil A1/A3 para cada assinatura. O certificado fica com o titular; o app não recebe o arquivo do certificado nem a senha. Com certificado, cada signatário assina em sua própria etapa.
+3. **Definir os signatários:** confira os contatos e selecione e-mail, WhatsApp, biometria facial e documento de identidade ou certificado digital ICP-Brasil A1/A3 para cada assinatura. O certificado fica com o titular; o app não recebe o arquivo do certificado nem a senha. Com certificado, cada signatário assina em sua própria etapa.
 4. **Preparar:** Preparar e revisar carrega o PDF na Assinafy ou confere o modelo e consulta o custo. Esta etapa não cria convites. Se desistir antes de enviar, o app tenta descartar o PDF não enviado; a limpeza em segundo plano trata os uploads acompanhados que sobrarem.
 5. **Confirmar e enviar:** confira o workspace, os signatários, os envios recentes e o custo. Depois da sua confirmação, o app confere novamente o custo e cria o registro Enviando no Twenty antes de solicitar as assinaturas. O convite só é solicitado nessa etapa. Uma tentativa repetida no mesmo fluxo reaproveita a solicitação; quando o resultado não é confirmado, o registro permanece para conferência.
 6. **Assinar e acompanhar:** os signatários recebem o convite pelo canal escolhido e validam a assinatura na Assinafy. O painel permite atualizar o andamento, reenviar convites com conferência de custo e cancelar quando permitido. As atualizações em segundo plano acontecem a cada 15 minutos para os documentos dentro da janela de acompanhamento e, com os webhooks ativados, assim que a Assinafy avisa uma assinatura, recusa, cancelamento ou conclusão.
@@ -17,7 +17,7 @@ As seções abaixo detalham a configuração, cada etapa, os status, as permiss�
 ## O que o app faz
 
 - Envia para assinatura eletrônica um PDF anexado a uma Pessoa, Empresa ou Oportunidade, ou um modelo pronto da Assinafy, em três etapas: Documento, Signatários e Revisar e enviar.
-- Valida cada signatário por e-mail, por WhatsApp ou com Certificado digital ICP-Brasil (A1 ou A3), com assinaturas em paralelo ou uma por vez, em uma ordem definida.
+- Valida cada signatário por e-mail, por WhatsApp, por biometria facial e documento de identidade ou com Certificado digital ICP-Brasil (A1 ou A3), com assinaturas em paralelo ou uma por vez, em uma ordem definida.
 - Mostra a estimativa de custo da Assinafy em tempo real (documentos do plano e créditos) antes de qualquer envio e pede confirmação explícita. O custo é conferido novamente logo antes do envio.
 - Mantém no Twenty um registro de Documento Assinafy para cada solicitação, vinculado à Pessoa, Empresa ou Oportunidade de origem, com o status, o andamento dos signatários e o prazo para assinar.
 - Guarda o PDF assinado e, quando houver certificado digital, o PDF com certificado ICP-Brasil no campo Documento assinado do registro.
@@ -98,6 +98,7 @@ Quando as duas formas existem, a conexão do próprio membro é usada primeiro, 
    - **E-mail:** o convite e o código de validação vão para o e-mail do signatário, que é obrigatório.
    - **WhatsApp:** o convite e o código vão pelo WhatsApp. O WhatsApp com DDI, por exemplo `+55 11 90000-0000`, é obrigatório, e o e-mail é opcional.
    - **Certificado digital ICP-Brasil (A1 ou A3):** o titular assina na Assinafy com o próprio certificado. Informe o CPF (11 dígitos) ou o CNPJ (14 caracteres, que podem incluir letras) do titular do certificado e escolha em Enviar convite por a opção E-mail ou WhatsApp, com o contato correspondente.
+   - **Biometria facial e documento de identidade:** informe um CPF válido (CNPJ não é aceito) e escolha o convite por E-mail ou WhatsApp. O signatário autoriza e faz a verificação de identidade, foto e prova de vida na Assinafy. O recurso depende do plano; a estimativa informa o custo. O Twenty não recebe fotos nem evidências. Se a biometria exigir análise, aprove ou recuse na Assinafy: o signatário pode assinar enquanto aguarda, mas o documento só é finalizado depois da aprovação.
 
    Dois signatários não podem ter o mesmo e-mail, e dois signatários por WhatsApp não podem ter o mesmo número.
 5. **Ordem de assinatura:** marque Assinar um por vez, na ordem da lista para avisar cada signatário somente depois que o anterior assinar. Sem essa opção, todos são convidados ao mesmo tempo. Um signatário com certificado precisa assinar sozinho na própria etapa, por isso a ordem é ativada automaticamente quando algum signatário usa certificado.
@@ -118,6 +119,7 @@ A aba Assinaturas lista os Documentos Assinafy do registro com o status, o andam
 | --- | --- |
 | Enviando | A solicitação está sendo enviada à Assinafy. Atualize em instantes. |
 | Aguardando assinaturas | A Assinafy enviou os convites e aguarda as assinaturas. |
+| Biometria em análise | Todos assinaram, mas a verificação de identidade aguarda aprovação ou recusa na Assinafy. |
 | Finalizando | Todos assinaram e a Assinafy está certificando o documento, ou o PDF assinado ainda está sendo copiado para o Twenty. |
 | Assinado | Todos os signatários assinaram e os PDFs assinados estão guardados no campo Documento assinado. |
 | Recusado | Um signatário recusou. O motivo é exibido quando a Assinafy o informa, com links, e-mails e números longos substituídos por [link], [e-mail] e [número] e limitado a 300 caracteres; o texto completo continua na Assinafy. |
@@ -127,7 +129,7 @@ A aba Assinaturas lista os Documentos Assinafy do registro com o status, o andam
 | Confira na Assinafy | A Assinafy não confirmou a solicitação, então ela pode ou não ter sido enviada. Para um PDF, o app descobre sozinho na próxima atualização. Para um modelo, confira na Assinafy; se o documento não estiver lá, remova-o do Twenty e envie novamente. |
 | Desconhecido | A Assinafy informou um status que o app não reconhece. |
 
-Cada signatário aparece como Assinou, Recusou, Falha na entrega, Não assinou (a solicitação foi cancelada ou recusada antes da assinatura dele), Convite pendente (a Assinafy ainda não enviou o convite), Aguardando signatários anteriores (em uma ordem de assinatura, até que as etapas anteriores sejam assinadas) ou Convidado.
+Cada signatário aparece como Assinou, Recusou, Falha na entrega, Não assinou (a solicitação foi cancelada ou recusada antes da assinatura dele), Convite pendente (a Assinafy ainda não enviou o convite), Aguardando signatários anteriores (em uma ordem de assinatura, até que as etapas anteriores sejam assinadas), Biometria em análise na Assinafy (aprove ou recuse a verificação na Assinafy) ou Convidado.
 
 Quando o documento é assinado, o PDF certificado é guardado como `<nome do documento> - assinado.pdf` e, se um certificado digital foi usado, o PDF PAdES como `<nome do documento> - ICP-Brasil.pdf`, os dois no campo Documento assinado e como links para download no painel e na aba Assinaturas.
 
@@ -140,17 +142,17 @@ Quando o documento é assinado, o PDF certificado é guardado como `<nome do doc
 
 ### Atualizações em segundo plano
 
-A cada 15 minutos, o app atualiza os documentos em aberto (Aguardando assinaturas, Finalizando, Desconhecido e envios não confirmados) enviados, ou criados, no caso dos envios não confirmados, nos últimos 120 dias, até 50 por execução, começando pelos verificados há mais tempo, e guarda os PDFs assinados. Ele usa apenas a chave de API e as conexões compartilhadas com o workspace, cada uma para os documentos do workspace da Assinafy que ela acessa. Os documentos de um workspace da Assinafy que nenhuma delas acessa só são atualizados quando alguém os abre; a etapa de revisão avisa isso antes do envio.
+A cada 15 minutos, o app atualiza os documentos em aberto (Aguardando assinaturas, Biometria em análise, Finalizando, Desconhecido e envios não confirmados) enviados, ou criados, no caso dos envios não confirmados, nos últimos 120 dias, até 50 por execução, começando pelos verificados há mais tempo, e guarda os PDFs assinados. Ele usa apenas a chave de API e as conexões compartilhadas com o workspace, cada uma para os documentos do workspace da Assinafy que ela acessa. Os documentos de um workspace da Assinafy que nenhuma delas acessa só são atualizados quando alguém os abre; a etapa de revisão avisa isso antes do envio.
 
 ### Webhooks da Assinafy (opcional)
 
-Com os webhooks, os status mudam no Twenty assim que a Assinafy registra uma assinatura, uma recusa, um cancelamento, a conclusão do documento ou uma falha de processamento. Sem eles, tudo continua funcionando com a atualização a cada 15 minutos.
+Com os webhooks, os status mudam no Twenty assim que a Assinafy registra uma assinatura, uma recusa, um cancelamento, a conclusão do documento, uma falha de processamento ou uma mudança na análise da biometria. Sem eles, tudo continua funcionando com a atualização a cada 15 minutos.
 
 1. Confirme que o servidor Twenty é acessível pela internet: a Assinafy entrega os eventos em `<URL das funções>/assinafy/webhook`, em que a URL das funções é `<SERVER_URL>/s` em instalações próprias ou o domínio de funções do workspace no Twenty Cloud.
 2. Tenha uma chave de API ou uma conexão compartilhada com o workspace (aprovada com `webhooks:write`) para cada workspace da Assinafy.
 3. Na aba Variáveis do app, preencha E-mail dos webhooks da Assinafy (`ASSINAFY_WEBHOOK_EMAIL`) com o e-mail que a Assinafy deve avisar quando não conseguir entregar um evento.
 
-Na próxima atualização em segundo plano (em até 15 minutos), o app registra um endpoint chamado Twenty em cada workspace da Assinafy que uma dessas credenciais acessa. Com a chave de API, o endpoint é assinado (Standard Webhooks) e o app confere a assinatura de cada entrega; uma conexão OAuth não pode ler o segredo de assinatura, então o endpoint dela é protegido apenas pelo token aleatório da URL. Em qualquer caso, um evento só faz o app consultar o documento na Assinafy, e nada do conteúdo do evento é guardado.
+Na próxima atualização em segundo plano (em até 15 minutos), o app registra um endpoint chamado Twenty em cada workspace da Assinafy que uma dessas credenciais acessa. Com chave de API ou OAuth, o endpoint é assinado (Standard Webhooks): o app guarda o segredo recebido na criação e confere a assinatura e o token aleatório da URL em cada entrega. Endpoints OAuth antigos sem assinatura são substituídos na próxima atualização. Em qualquer caso, um evento só faz o app consultar o documento na Assinafy, e nada do conteúdo do evento é guardado.
 
 A Assinafy permite 1 endpoint por workspace, ou até 3 nos planos pagos. O app nunca altera nem remove endpoints de outras integrações; sem um espaço livre, ele não registra o seu e mantém a atualização a cada 15 minutos. Para desativar, apague o e-mail: a próxima atualização remove o endpoint do app. Desinstalar o app também o remove, quando uma credencial ainda acessa o workspace da Assinafy; caso contrário, exclua o endpoint Twenty nas configurações de webhooks da Assinafy.
 
@@ -248,7 +250,7 @@ O campo Último erro de um Documento Assinafy guarda o código da última opera�
 
 - **Adicionar conexão está desativado e a aba Geral diz que é preciso um administrador do servidor:** `ASSINAFY_CLIENT_ID` e `ASSINAFY_CLIENT_SECRET` não estão preenchidas. Preencha-as ou use uma chave de API.
 - **A Assinafy mostra um erro na própria página e nunca volta ao Twenty:** o ID do cliente está errado ou a aplicação OAuth da Assinafy não tem exatamente a URI de redirecionamento `<SERVER_URL>/auth/apps/callback`.
-- **O Twenty mostra "OAuth provider returned error":** `access_denied` significa que a aprovação foi recusada; `invalid_scope` significa que a aplicação OAuth da Assinafy não está registrada com as seis permissões.
+- **O Twenty mostra "OAuth provider returned error":** `access_denied` significa que a aprovação foi recusada; `invalid_scope` significa que a aplicação OAuth da Assinafy não está registrada com as sete permissões.
 - **A troca do token falha depois da aprovação:** o segredo do cliente está errado ou foi trocado, ou a aplicação está desativada na Assinafy. Atualize `ASSINAFY_CLIENT_SECRET`.
 - **Estado inválido depois da aprovação:** a aprovação levou mais de 10 minutos. Comece de novo em Adicionar conexão.
 - **A conexão pede reconexão:** a conexão ficou 30 dias sem uso, ou a autorização foi revogada na Assinafy em Aplicativos conectados. Reconecte.

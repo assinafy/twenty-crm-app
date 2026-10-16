@@ -9,6 +9,7 @@ describe('mapAssinafyStatus', () => {
     ['metadata_processing', 'PENDING_SIGNATURE', 'UNCERTAIN'],
     ['metadata_ready', 'PENDING_SIGNATURE', 'UNCERTAIN'],
     ['pending_signature', 'PENDING_SIGNATURE', 'PENDING_SIGNATURE'],
+    ['pending_identity_review', 'PENDING_IDENTITY_REVIEW', 'PENDING_IDENTITY_REVIEW'],
     ['certificating', 'CERTIFICATING', 'CERTIFICATING'],
     ['certificated', 'CERTIFICATED', 'CERTIFICATED'],
     ['rejected_by_signer', 'REJECTED_BY_SIGNER', 'REJECTED_BY_SIGNER'],

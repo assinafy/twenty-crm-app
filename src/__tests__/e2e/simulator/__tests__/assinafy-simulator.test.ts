@@ -753,9 +753,10 @@ describe('webhook endpoints', () => {
     const id = String(created.id);
 
     expect(created).toMatchObject({ ...endpointBody, is_active: true, signing_enabled: true });
-    expect(created).not.toHaveProperty('secret');
-    expect(await data(await withKey(endpointsPath))).toEqual([created]);
-    expect(await data(await withKey(`${endpointsPath}/${id}`))).toEqual(created);
+    expect(created.secret).toMatch(/^whsec_/);
+    const { secret: _secret, ...listed } = created;
+    expect(await data(await withKey(endpointsPath))).toEqual([listed]);
+    expect(await data(await withKey(`${endpointsPath}/${id}`))).toEqual(listed);
     expect(await data(await withKey(`${endpointsPath}/${id}/secret`))).toEqual({ secret: expect.stringMatching(/^whsec_/) });
 
     const updated = await data(
@@ -795,7 +796,9 @@ describe('webhook endpoints', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...endpointBody, signing_enabled: true }),
     });
-    const id = String((await data(response)).id);
+    const created = await data(response);
+    const id = String(created.id);
+    expect(created.secret).toMatch(/^whsec_/);
 
     expect(response.status).toBe(200);
     expect((await api(endpointsPath, token)).status).toBe(200);

@@ -1,6 +1,5 @@
 // The app's webhook endpoint in one Assinafy workspace. `token` authenticates deliveries (it is part of `url`);
-// `secret` verifies their signature and is null when an OAuth connection registered the endpoint, since Assinafy
-// shows signing secrets to API keys only.
+// `secret` verifies their signature. A legacy unsigned OAuth endpoint has null until the next reconciliation replaces it.
 export type WebhookEndpoint = {
   accountId: string;
   endpointId: string;

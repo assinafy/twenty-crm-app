@@ -45,7 +45,7 @@ type Webhooks = AssinafyClient['webhooks'];
 
 const buildWebhooks = (endpoints: IWebhookEndpoint[] = []) => ({
   listEndpoints: vi.fn<Webhooks['listEndpoints']>(async () => endpoints),
-  createEndpoint: vi.fn<Webhooks['createEndpoint']>(async ({ url }) => remote({ id: 'ep-new', url })),
+  createEndpoint: vi.fn<Webhooks['createEndpoint']>(async ({ url }) => ({ ...remote({ id: 'ep-new', url }), secret: 'whsec_bmV3' })),
   updateEndpoint: vi.fn<Webhooks['updateEndpoint']>(async () => remote()),
   deleteEndpoint: vi.fn<Webhooks['deleteEndpoint']>(async () => undefined),
   getEndpointSecret: vi.fn<Webhooks['getEndpointSecret']>(async () => ({ secret: 'whsec_bmV3' })),
@@ -77,7 +77,7 @@ describe('reconcileWebhookEndpoints', () => {
       events: [...WEBHOOK_EVENTS],
       signing_enabled: true,
     });
-    expect(webhooks.getEndpointSecret).toHaveBeenCalledExactlyOnceWith('ep-new');
+    expect(webhooks.getEndpointSecret).not.toHaveBeenCalled();
     const [entry] = saved();
     expect(entry).toEqual({
       accountId: 'acc-1',
@@ -89,14 +89,40 @@ describe('reconcileWebhookEndpoints', () => {
     });
   });
 
-  it('registers an unsigned endpoint through an OAuth connection, which cannot read signing secrets', async () => {
+  it('stores the creation secret of a signed OAuth endpoint without reading it again', async () => {
     const webhooks = buildWebhooks();
 
     await reconcileWebhookEndpoints([account(webhooks, 'acc-1', sharedCredential)], EMAIL);
 
-    expect(webhooks.createEndpoint).toHaveBeenCalledWith(expect.objectContaining({ signing_enabled: false }));
+    expect(webhooks.createEndpoint).toHaveBeenCalledWith(expect.objectContaining({ signing_enabled: true }));
     expect(webhooks.getEndpointSecret).not.toHaveBeenCalled();
-    expect(saved()).toEqual([expect.objectContaining({ endpointId: 'ep-new', secret: null })]);
+    expect(saved()).toEqual([expect.objectContaining({ endpointId: 'ep-new', secret: 'whsec_bmV3' })]);
+  });
+
+  it.each([
+    ['a legacy unsigned endpoint', stored({ secret: null }), remote({ signing_enabled: false })],
+    ['signing disabled in Assinafy', stored(), remote({ signing_enabled: false })],
+  ])('replaces %s with a signed endpoint and a known secret', async (_label, entry, current) => {
+    store.set(KV_WEBHOOK_ENDPOINTS, [entry]);
+    const webhooks = buildWebhooks([current]);
+
+    await reconcileWebhookEndpoints([account(webhooks, 'acc-1', sharedCredential)], EMAIL);
+
+    expect(webhooks.deleteEndpoint).toHaveBeenCalledExactlyOnceWith('ep-1');
+    expect(webhooks.createEndpoint).toHaveBeenCalledWith(expect.objectContaining({ signing_enabled: true }));
+    expect(saved()).toEqual([expect.objectContaining({ endpointId: 'ep-new', secret: 'whsec_bmV3' })]);
+  });
+
+  it.each([undefined, '', 'wrong-prefix', 'whsec_'])('keeps no entry with an unusable creation secret (%s), and replaces the orphan', async (secret) => {
+    const webhooks = buildWebhooks();
+    webhooks.createEndpoint.mockResolvedValueOnce({ ...remote({ id: 'orphan' }), secret });
+    await reconcileWebhookEndpoints([account(webhooks)], EMAIL);
+    expect(saved()).toEqual([]);
+
+    webhooks.listEndpoints.mockResolvedValue([remote({ id: 'orphan' })]);
+    await reconcileWebhookEndpoints([account(webhooks)], EMAIL);
+    expect(webhooks.deleteEndpoint).toHaveBeenCalledExactlyOnceWith('orphan');
+    expect(saved()).toEqual([expect.objectContaining({ endpointId: 'ep-new' })]);
   });
 
   it('leaves an endpoint that matches alone and manages each workspace with its first credential', async () => {

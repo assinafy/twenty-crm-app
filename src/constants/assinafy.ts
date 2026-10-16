@@ -35,6 +35,11 @@ export const WEBHOOK_EVENTS = [
   'user_rejected_document',
   'document_ready',
   'document_processing_failed',
+  'signer_identity_verified',
+  'signer_identity_verification_failed',
+  'signer_identity_review_required',
+  'signer_identity_review_approved',
+  'signer_identity_review_rejected',
 ];
 // Standard Webhooks headers Twenty forwards to the webhook route.
 export const WEBHOOK_SIGNATURE_HEADERS = ['webhook-id', 'webhook-timestamp', 'webhook-signature'];

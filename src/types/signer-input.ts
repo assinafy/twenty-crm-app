@@ -1,7 +1,7 @@
 import { type NotificationMethod } from 'src/types/notification-method';
 import { type VerificationMethod } from 'src/types/verification-method';
 
-// A validated signer as sent by the front end (phone is E.164, governmentId digits only).
+// A validated signer as sent by the front end (phone is E.164, governmentId is an unformatted CPF or CNPJ).
 export type SignerInput = {
   name: string;
   email: string | null;

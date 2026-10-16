@@ -40,6 +40,7 @@ describe('findRecentSends', () => {
                   in: [
                     'SENDING',
                     'PENDING_SIGNATURE',
+                    'PENDING_IDENTITY_REVIEW',
                     'CERTIFICATING',
                     'CERTIFICATED',
                     'REJECTED_BY_SIGNER',

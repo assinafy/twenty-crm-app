@@ -178,22 +178,22 @@ describe('sendFlowReducer — draft edits', () => {
     expect(run(whatsapp, { type: 'SET_NOTIFICATION', index: 0, method: 'Email' })).toBe(whatsapp);
   });
 
-  it('lets a certificate signer keep and choose the channel', () => {
+  it.each(['DigitalCertificate', 'IdDocumentFaceMatchBasic'] as const)('lets a %s signer keep and choose the channel', (method) => {
     const certificate = run(
       initial(),
       { type: 'SET_VERIFICATION', index: 0, method: 'Whatsapp' },
-      { type: 'SET_VERIFICATION', index: 0, method: 'DigitalCertificate' },
+      { type: 'SET_VERIFICATION', index: 0, method },
     );
 
     expect(certificate.draft.signers[0]).toMatchObject({
-      verificationMethod: 'DigitalCertificate',
+      verificationMethod: method,
       notificationMethod: 'Whatsapp',
     });
     expect(
       run(certificate, { type: 'SET_NOTIFICATION', index: 0, method: 'Email' }).draft.signers[0]?.notificationMethod,
     ).toBe('Email');
     expect(
-      run(initial(), { type: 'SET_VERIFICATION', index: 5, method: 'DigitalCertificate' }).draft.signers,
+      run(initial(), { type: 'SET_VERIFICATION', index: 5, method }).draft.signers,
     ).toHaveLength(1);
   });
 

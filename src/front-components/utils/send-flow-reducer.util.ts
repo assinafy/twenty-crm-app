@@ -185,16 +185,17 @@ export const sendFlowReducer = (state: SendFlowState, action: SendFlowAction): S
     case 'SET_SIGNER_TEXT':
       return updateSigner(state, action.index, { [action.field]: action.value });
     case 'SET_VERIFICATION':
-      // Assinafy pairs Email and WhatsApp verification with the same channel; a certificate keeps the chosen one.
+      // OTP methods require their own channel; the other methods keep the chosen one.
       return updateSigner(state, action.index, {
         verificationMethod: action.method,
         notificationMethod:
-          action.method === 'DigitalCertificate'
-            ? (draft.signers[action.index]?.notificationMethod ?? 'Email')
-            : action.method,
+          action.method === 'Email' || action.method === 'Whatsapp'
+            ? action.method
+            : (draft.signers[action.index]?.notificationMethod ?? 'Email'),
       });
     case 'SET_NOTIFICATION':
-      return draft.signers[action.index]?.verificationMethod === 'DigitalCertificate'
+      return draft.signers[action.index]?.verificationMethod === 'DigitalCertificate' ||
+        draft.signers[action.index]?.verificationMethod === 'IdDocumentFaceMatchBasic'
         ? updateSigner(state, action.index, { notificationMethod: action.method })
         : state;
     case 'FILL_SIGNER': {

@@ -14,6 +14,7 @@ const label = (value: StoredSigner, document: SignerDocument = pending) =>
 
 describe('getSignerStatus', () => {
   it('derives each signer state', () => {
+    expect(label(signer({ identityVerificationStatus: 'InReview' }))).toBe('Biometria em análise na Assinafy');
     expect(label(signer({ completed: true }))).toBe('Assinou');
     expect(label(signer({ declined: true }), { status: 'REJECTED_BY_SIGNER' })).toBe('Recusou');
     expect(label(signer({ deliveryFailed: true }))).toBe('Falha na entrega');

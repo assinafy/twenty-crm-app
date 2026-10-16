@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { findDocumentRecord, pdfRequest, prepare, readPendingUploads, waitUntilProcessed } from 'src/__tests__/e2e/e2e-flows';
+import { findDocumentRecord, readPendingUploads } from 'src/__tests__/e2e/e2e-flows';
 import {
   clearApiKey,
   type E2eApp,
@@ -13,6 +13,7 @@ import { poll } from 'src/__tests__/e2e/poll';
 import { simulator } from 'src/__tests__/e2e/simulator-client';
 import { createCrmFixtures, type CrmFixtures } from 'src/__tests__/integration/crm-fixtures';
 import { callRoute, findLogicFunctionId, runCleanup } from 'src/__tests__/integration/twenty-api';
+import { costEstimate } from 'src/services/__tests__/service-fixtures';
 import { SEND_FOR_SIGNATURE_WORKFLOW_ACTION_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 
 type WorkflowOutput = {
@@ -154,41 +155,39 @@ describe('workflow action', () => {
     });
   });
 
-  it('refuses a send above maxCredits, sends nothing and discards the upload (or leaves it to the purge)', async () => {
-    // WhatsApp validation is paid in credits, so a ceiling of 0 (plan documents only) refuses it: with COST_LIMIT_EXCEEDED
-    // when the sandbox balance covers it, with INSUFFICIENT_RESOURCES before that check when it does not.
-    const quote = await prepare(token, {
-      ...pdfRequest(crm, 'Cotação WhatsApp E2E'),
-      signers: [{ name: 'Ana Integração', phone: '+5511987654321', verificationMethod: 'Whatsapp', notificationMethod: 'Whatsapp' }],
-    });
-    expect(quote.estimate.totalCredits).toBeGreaterThan(0);
-    await waitUntilProcessed(quote.assinafyDocumentId ?? '');
-    expect(
-      await callRoute('/s/assinafy/discard', token, { assinafyDocumentId: quote.assinafyDocumentId, accountId: quote.accountId }),
-    ).toEqual({ ok: true });
-
-    const versionId = await createWorkflow('Assinafy E2E limite', { ...baseInput(), verificationMethod: 'WhatsApp', maxCredits: 0 });
-    const mark = await simulator.mark();
-
-    const output = await runWorkflowOnceConnected(versionId);
-
-    expect(output).toMatchObject({
-      ok: false,
-      errorCode: quote.estimate.sufficient ? 'COST_LIMIT_EXCEEDED' : 'INSUFFICIENT_RESOURCES',
-      documentRecordId: null,
-    });
-    const log = await simulator.logSince(mark);
-    expect(log.filter(({ method, path }) => method === 'POST' && path.endsWith('/assignments'))).toEqual([]);
-    const [upload] = log.filter(({ method, path }) => method === 'POST' && /^\/v1\/accounts\/[^/]+\/documents$/.test(path));
-    expect(upload).toMatchObject({ status: 200 });
-    const deletes = log.filter(({ method }) => method === 'DELETE');
-    expect(deletes).toHaveLength(1);
-    const uploadId = /^\/v1\/documents\/([^/]+)$/.exec(deletes[0]?.path ?? '')?.[1] ?? '';
-    const pending = (await readPendingUploads(app.id)).map(({ documentId }) => documentId);
-    // Deleted right away, or (400: Assinafy is still processing it) kept on the pending-upload list for the purge.
-    expect([
-      { status: 200, pending: false },
-      { status: 400, pending: true },
-    ]).toContainEqual({ status: deletes[0]?.status, pending: pending.includes(uploadId) });
+  it.each([true, false])('refuses a paid send with maxCredits 0 (sufficient balance: %s) and cleans up without sending', async (sufficient) => {
+    // A fixed paid estimate tests the credit ceiling independently of the sandbox plan and balance.
+    await simulator.addFaults([{
+      method: 'POST', pathRegex: '^/v1/documents/[^/]+/assignments/estimate-cost$', phase: 'before', times: 1,
+      action: { status: 200, body: { status: 200, message: '', data: costEstimate({
+        credits: 0.45, total_credits: 0.45, has_sufficient_resources: sufficient,
+        blocking_reason: sufficient ? null : 'InsufficientCredits',
+      }) } },
+    }]);
+    try {
+      const versionId = await createWorkflow('Assinafy E2E limite', { ...baseInput(), verificationMethod: 'WhatsApp', maxCredits: 0 });
+      const mark = await simulator.mark();
+      const output = await runWorkflowOnceConnected(versionId);
+      expect(output).toMatchObject({
+        ok: false,
+        errorCode: sufficient ? 'COST_LIMIT_EXCEEDED' : 'INSUFFICIENT_RESOURCES',
+        documentRecordId: null,
+      });
+      const log = await simulator.logSince(mark);
+      expect(log.filter(({ method, path }) => method === 'POST' && path.endsWith('/assignments'))).toEqual([]);
+      const [upload] = log.filter(({ method, path }) => method === 'POST' && /^\/v1\/accounts\/[^/]+\/documents$/.test(path));
+      expect(upload).toMatchObject({ status: 200 });
+      const deletes = log.filter(({ method }) => method === 'DELETE');
+      expect(deletes).toHaveLength(1);
+      const uploadId = /^\/v1\/documents\/([^/]+)$/.exec(deletes[0]?.path ?? '')?.[1] ?? '';
+      const pending = (await readPendingUploads(app.id)).map(({ documentId }) => documentId);
+      // Deleted right away, or (400: Assinafy is still processing it) kept on the pending-upload list for the purge.
+      expect([
+        { status: 200, pending: false },
+        { status: 400, pending: true },
+      ]).toContainEqual({ status: deletes[0]?.status, pending: pending.includes(uploadId) });
+    } finally {
+      await simulator.clearFaults();
+    }
   });
 });

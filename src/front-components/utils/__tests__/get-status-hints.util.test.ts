@@ -12,6 +12,12 @@ const hints = (overrides: Partial<Parameters<typeof getStatusHints>[0]>) =>
   }).map(({ message, values }) => [message.message, values]);
 
 describe('getStatusHints', () => {
+  it('directs biometric review decisions to Assinafy', () => {
+    expect(hints({ status: 'PENDING_IDENTITY_REVIEW' })[0]?.[0]).toBe(
+      'Todos assinaram. Aprove ou recuse a análise da biometria na Assinafy para finalizar o documento.',
+    );
+  });
+
   it('has nothing to add for a healthy pending document', () => {
     expect(hints({})).toEqual([]);
   });

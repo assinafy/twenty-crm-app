@@ -13,7 +13,7 @@ import { poll } from 'src/__tests__/e2e/poll';
 import { simulator, type SimWebhookEndpoint } from 'src/__tests__/e2e/simulator-client';
 import { createCrmFixtures, type CrmFixtures } from 'src/__tests__/integration/crm-fixtures';
 import { callRoute, runCleanup, setAppVariable } from 'src/__tests__/integration/twenty-api';
-import { ASSINAFY_WEBHOOK_EMAIL_VARIABLE } from 'src/constants/assinafy';
+import { ASSINAFY_WEBHOOK_EMAIL_VARIABLE, WEBHOOK_EVENTS } from 'src/constants/assinafy';
 
 const WEBHOOK_EMAIL = 'webhooks-e2e@example.invalid';
 const cleanup: Array<() => Promise<unknown>> = [];
@@ -61,7 +61,7 @@ describe('webhooks', () => {
       is_active: true,
       signing_enabled: true,
       signed: true,
-      events: ['signer_signed_document', 'signer_rejected_document', 'user_rejected_document', 'document_ready', 'document_processing_failed'],
+      events: WEBHOOK_EVENTS,
     });
     expect(endpoint.url).toMatch(/\/s\/assinafy\/webhook\?token=[\w-]{43}$/);
     expect(await waitForHealthStatus(app, 'OK', 'the registered endpoint to clear the warning')).toMatchObject({ status: 'OK' });

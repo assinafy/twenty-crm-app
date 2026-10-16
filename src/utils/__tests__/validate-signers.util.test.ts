@@ -23,6 +23,9 @@ const certificateSigner = (overrides: Record<string, unknown> = {}) => ({
   governmentId: '000.000.001-91',
   ...overrides,
 });
+const biometric = (overrides: Record<string, unknown> = {}) => certificateSigner({
+  verificationMethod: 'IdDocumentFaceMatchBasic', governmentId: '529.982.247-25', ...overrides,
+});
 const manySigners = (count: number) =>
   Array.from({ length: count }, (_, index) => emailSigner({ email: `signer${index}@example.invalid` }));
 const pdf = { source: 'PDF' } as const;
@@ -195,6 +198,32 @@ describe('validateSigners', () => {
 
     it('drops the government id of other verification methods', () => {
       expect(validateSigners([emailSigner({ governmentId: 'anything' })], pdf)[0]?.governmentId).toBeNull();
+    });
+  });
+
+  describe('biometric verification', () => {
+    it.each(['Email', 'Whatsapp'])('accepts a valid CPF with %s notification', (notificationMethod) => {
+      expect(validateSigners([biometric({ notificationMethod, phone: '+5511900000000' })], pdf)[0]).toMatchObject({
+        verificationMethod: 'IdDocumentFaceMatchBasic', notificationMethod, governmentId: '52998224725',
+      });
+    });
+
+    it('defaults to email and accepts a template role', () => {
+      expect(validateSigners([biometric({ roleId: 'role-1' })], template)[0]).toMatchObject({
+        notificationMethod: 'Email', roleId: 'role-1',
+      });
+    });
+
+    it.each(['11111111111', '52998224724', '00.000.000/0001-91', '12ABC34501DE35'])('rejects an invalid CPF or CNPJ: %s', (governmentId) => {
+      expect(() => validateSigners([biometric({ governmentId })], pdf)).toThrow(
+        invalid({ field: 'signers.governmentId', reason: 'cpf', index: 0 }),
+      );
+    });
+
+    it('requires a CPF', () => {
+      expect(() => validateSigners([biometric({ governmentId: null })], pdf)).toThrow(
+        invalid({ field: 'signers.governmentId', reason: 'required', index: 0 }),
+      );
     });
   });
 

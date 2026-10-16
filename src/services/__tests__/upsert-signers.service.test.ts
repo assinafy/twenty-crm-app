@@ -43,6 +43,16 @@ describe('upsertSigners', () => {
     expect(fake.signers.update).not.toHaveBeenCalled();
   });
 
+  it('never sends a government id for OTP verification', async () => {
+    const fake = fakeAssinafyClient();
+    fake.signers.create.mockResolvedValue({ id: 's-1', full_name: 'Ana Souza', email: 'ana@example.invalid' });
+
+    await upsertSigners(fake.client, [buildSignerInput({ governmentId: '52998224725' })]);
+
+    expect(fake.signers.create).toHaveBeenCalledWith({ full_name: 'Ana Souza', email: 'ana@example.invalid' });
+    expect(fake.signers.update).not.toHaveBeenCalled();
+  });
+
   it('updates a reused signer once with only the differing name and WhatsApp number, never the email', async () => {
     const fake = fakeAssinafyClient();
     fake.signers.create.mockResolvedValue({
@@ -60,12 +70,12 @@ describe('upsertSigners', () => {
     });
   });
 
-  it('always sends the government id of a certificate signer', async () => {
+  it.each(['DigitalCertificate', 'IdDocumentFaceMatchBasic'] as const)('always sends the government id of a %s signer', async (verificationMethod) => {
     const fake = fakeAssinafyClient();
     fake.signers.create.mockResolvedValue({ id: 's-1', full_name: 'Ana Souza', email: 'ana@example.invalid' });
 
     await upsertSigners(fake.client, [
-      buildSignerInput({ verificationMethod: 'DigitalCertificate', governmentId: '12345678901' }),
+      buildSignerInput({ verificationMethod, governmentId: '12345678901' }),
     ]);
 
     expect(fake.signers.update).toHaveBeenCalledExactlyOnceWith('s-1', { government_id: '12345678901' });

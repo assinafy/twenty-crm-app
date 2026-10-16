@@ -17,6 +17,7 @@ const STATUS_BY_STATE: Record<SignerState, SignerStatus> = {
   INVITED: { label: msg('Convidado'), color: 'blue' },
   WAITING: { label: msg('Aguardando signatários anteriores'), color: 'gray' },
   NOT_INVITED: { label: msg('Convite pendente'), color: 'gray' },
+  IDENTITY_IN_REVIEW: { label: msg('Biometria em análise na Assinafy'), color: 'orange' },
 };
 
 // Same decision order as the AI status summary (getSignerState).

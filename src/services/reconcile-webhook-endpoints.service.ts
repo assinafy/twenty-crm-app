@@ -8,6 +8,7 @@ import { KV_WEBHOOK_ENDPOINTS } from 'src/constants/kv-keys';
 import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
 import { type ResolvedCredential } from 'src/types/resolved-credential';
 import { type WebhookEndpoint } from 'src/types/webhook-endpoint';
+import { AppFailure } from 'src/utils/app-failure.util';
 import { getWebhookRoute } from 'src/utils/get-webhook-route.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
@@ -18,22 +19,24 @@ const sameEvents = (events: readonly string[]): boolean =>
   events.length === WEBHOOK_EVENTS.length && WEBHOOK_EVENTS.every((event) => events.includes(event));
 
 const createEndpoint = async (
-  { client, credential, accountId }: ResolvedCredential,
+  { client, accountId }: ResolvedCredential,
   route: string,
   email: string,
 ): Promise<WebhookEndpoint> => {
   const token = randomBytes(32).toString('base64url');
   const url = `${route}?token=${token}`;
-  // Assinafy shows signing secrets to API keys only, so an endpoint registered through OAuth relies on the token.
-  const signed = credential.kind === 'apiKey';
+  // Creation returns the signing secret once for both API keys and OAuth; never depend on reading it later.
   const created = await client.webhooks.createEndpoint({
     name: WEBHOOK_ENDPOINT_NAME,
     url,
     email,
     events: [...WEBHOOK_EVENTS],
-    signing_enabled: signed,
+    signing_enabled: true,
   });
-  const secret = signed ? (await client.webhooks.getEndpointSecret(created.id)).secret : null;
+  const secret = created.secret;
+  if (typeof secret !== 'string' || !secret.startsWith('whsec_') || secret.length <= 6) {
+    throw new AppFailure('PROVIDER_UNAVAILABLE', 'A Assinafy não retornou o segredo de assinatura do webhook.');
+  }
   return { accountId, endpointId: created.id, url, email, token, secret };
 };
 
@@ -73,6 +76,11 @@ const reconcileAccount = async (
   if (email === null) {
     if (current) await client.webhooks.deleteEndpoint(current.id);
     return null;
+  }
+  // OAuth cannot recover a lost secret. Replace legacy unsigned endpoints or externally disabled signatures.
+  if (entry && current && (entry.secret === null || !current.signing_enabled)) {
+    await client.webhooks.deleteEndpoint(current.id);
+    return createEndpoint(resolved, route, email);
   }
   return entry && current
     ? updateEndpoint(resolved, route, entry, current, email)

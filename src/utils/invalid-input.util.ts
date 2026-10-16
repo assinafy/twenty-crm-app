@@ -5,6 +5,7 @@ const REASON_TEXT: Record<string, string> = {
   required: 'obrigatório',
   type: 'tipo inválido',
   format: 'formato inválido',
+  cpf: 'CPF inválido para biometria',
   too_long: 'longo demais',
   too_soon: 'prazo curto demais',
   too_few: 'poucos itens',

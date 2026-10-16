@@ -100,4 +100,18 @@ describe('createAssinafyClientFactory', () => {
   it('leaves the default account unset unless one is passed', async () => {
     await expect(create(oauth).templates.list()).rejects.toThrow('Account ID is required');
   });
+
+  it.each(['assignment', 'template', 'resend'])('never retries a billable %s even with safe-read retries enabled', async (operation) => {
+    const client = create(apiKey, { accountId: 'acc-1' });
+    const sent = record(client, 500);
+    const signers = [{ id: 'signer-1', verification_method: 'Email' as const, notification_methods: ['Email' as const] }];
+    const call = operation === 'assignment'
+      ? () => client.assignments.create('doc-1', { method: 'virtual', signers })
+      : operation === 'template'
+        ? () => client.documents.createFromTemplate('template-1', signers.map((signer) => ({ ...signer, role_id: 'role-1' })))
+        : () => client.assignments.resendNotification('doc-1', 'assignment-1', 'signer-1');
+
+    await expect(call()).rejects.toMatchObject({ statusCode: 500 });
+    expect(sent).toHaveLength(1);
+  });
 });

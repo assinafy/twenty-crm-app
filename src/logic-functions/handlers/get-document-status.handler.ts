@@ -10,6 +10,7 @@ import { getSignerState } from 'src/utils/get-signer-state.util';
 const STATUS_TEXT: Record<DocumentStatus, string> = {
   SENDING: 'está sendo enviado para a Assinafy',
   PENDING_SIGNATURE: 'está aguardando assinaturas',
+  PENDING_IDENTITY_REVIEW: 'aguarda aprovação ou recusa da biometria na Assinafy para finalizar o documento',
   CERTIFICATING: 'foi assinado e a Assinafy está finalizando o arquivo assinado',
   CERTIFICATED: 'foi assinado',
   REJECTED_BY_SIGNER: 'foi recusado por um signatário',
@@ -35,6 +36,7 @@ const SIGNER_STATE_TEXT: Record<SignerState, string> = {
   INVITED: 'convidado, ainda não assinou',
   WAITING: 'aguardando signatários anteriores',
   NOT_INVITED: 'ainda não convidado',
+  IDENTITY_IN_REVIEW: 'biometria aguardando aprovação ou recusa na Assinafy',
 };
 
 const describeSigner = (signer: StoredSigner, status: DocumentStatus): string =>

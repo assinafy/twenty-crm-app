@@ -18,6 +18,9 @@ const METHOD_NOTES = {
   DigitalCertificate: msg(
     'O titular assina na Assinafy com o próprio certificado A1 ou A3. As assinaturas seguem a ordem da lista, uma por vez.',
   ),
+  IdDocumentFaceMatchBasic: msg(
+    'O signatário faz a verificação do documento de identidade, foto e prova de vida na Assinafy, com consentimento. Se houver análise pendente, aprove ou recuse na Assinafy.',
+  ),
 };
 
 type SignerCardProps = {
@@ -36,6 +39,7 @@ export const SignerCard = ({ signer, index, roleName, contacts, removable, disab
   const { t } = useTranslate();
   const titleId = useId();
   const certificate = signer.verificationMethod === 'DigitalCertificate';
+  const biometric = signer.verificationMethod === 'IdDocumentFaceMatchBasic';
   const setText = (field: 'name' | 'email' | 'phone' | 'governmentId') => (value: string) =>
     dispatch({ type: 'SET_SIGNER_TEXT', index, field, value });
 
@@ -77,7 +81,7 @@ export const SignerCard = ({ signer, index, roleName, contacts, removable, disab
           })
         }
       />
-      {certificate ? (
+      {certificate || biometric ? (
         <SelectInput
           label={t('Enviar convite por')}
           value={signer.notificationMethod}
@@ -109,11 +113,15 @@ export const SignerCard = ({ signer, index, roleName, contacts, removable, disab
           onChange={setText('phone')}
         />
       ) : null}
-      {certificate ? (
+      {certificate || biometric ? (
         <TextInput
-          label={t('CPF ou CNPJ do titular do certificado')}
+          label={biometric ? t('CPF do signatário') : t('CPF ou CNPJ do titular do certificado')}
           value={signer.governmentId}
-          hint={t('Informe os 11 dígitos do CPF ou os 14 caracteres do CNPJ (o CNPJ pode ter letras).')}
+          hint={
+            biometric
+              ? t('Informe um CPF válido com 11 dígitos. CNPJ não é aceito para biometria.')
+              : t('Informe os 11 dígitos do CPF ou os 14 caracteres do CNPJ (o CNPJ pode ter letras).')
+          }
           disabled={disabled}
           onChange={setText('governmentId')}
         />

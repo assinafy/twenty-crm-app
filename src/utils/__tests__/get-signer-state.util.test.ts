@@ -4,6 +4,14 @@ import { buildStoredSigner } from 'src/__tests__/fixtures/build-stored-signer';
 import { getSignerState } from 'src/utils/get-signer-state.util';
 
 describe('getSignerState', () => {
+  it('shows a pending biometric review without changing closed or completed signer states', () => {
+    const signer = buildStoredSigner({ verificationMethod: 'IdDocumentFaceMatchBasic', identityVerificationStatus: 'InReview' });
+    expect(getSignerState(signer, 'PENDING_SIGNATURE')).toBe('IDENTITY_IN_REVIEW');
+    expect(getSignerState({ ...signer, completed: true }, 'PENDING_IDENTITY_REVIEW')).toBe('IDENTITY_IN_REVIEW');
+    expect(getSignerState(signer, 'CANCELLED')).toBe('NOT_SIGNED');
+    expect(getSignerState({ ...signer, completed: true }, 'CERTIFICATED')).toBe('SIGNED');
+  });
+
   it('reads a signer who completed as signed', () => {
     expect(getSignerState(buildStoredSigner({ completed: true }), 'PENDING_SIGNATURE')).toBe('SIGNED');
   });

@@ -5,6 +5,20 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-16
+
+### Adicionado
+
+- Validação por biometria facial e documento de identidade, com CPF válido e convite por e-mail ou WhatsApp.
+- Status Biometria em análise e acompanhamento da aprovação ou recusa na Assinafy antes da finalização do documento.
+- Atualizações por webhook para os eventos de verificação de identidade e análise da biometria.
+
+### Alterado
+
+- Endpoints de webhook criados por OAuth também recebem e validam assinaturas Standard Webhooks. Endpoints OAuth
+  antigos sem assinatura são substituídos automaticamente na próxima atualização em segundo plano.
+- Atualização do `@assinafy/sdk` para a versão 2.8.0.
+
 ## [1.2.0] - 2026-10-07
 
 ### Adicionado

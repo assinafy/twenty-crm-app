@@ -43,7 +43,7 @@ export type SimFaultRule = {
   pathRegex: string;
   times?: number;
   phase?: 'before' | 'after';
-  action: { status: number; scopeChallenge?: string; retryAfter?: number } | { delayMs: number } | { reset: true };
+  action: { status: number; body?: object; scopeChallenge?: string; retryAfter?: number } | { delayMs: number } | { reset: true };
 };
 
 // Fetches from inside the container (the simulator port is not published). The request travels on stdin; the reply

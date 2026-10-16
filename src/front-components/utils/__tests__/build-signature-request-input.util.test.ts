@@ -113,6 +113,12 @@ describe('buildSignatureRequestInput', () => {
     ).toBeNull();
   });
 
+  it('keeps the CPF of a biometric signer without forcing sequential signing', () => {
+    const input = buildSignatureRequestInput(draft({ signers: [{ ...toSignerDraft(null), verificationMethod: 'IdDocumentFaceMatchBasic', governmentId: '529.982.247-25' }] }), 'r', null);
+    expect(input.signers[0]?.governmentId).toBe('52998224725');
+    expect(input.sequential).toBe(false);
+  });
+
   it('turns the deadline date into the end of that local day', () => {
     const expiresAt = buildSignatureRequestInput(draft({ expiresOn: '2026-10-01' }), 'r', null).expiresAt;
 

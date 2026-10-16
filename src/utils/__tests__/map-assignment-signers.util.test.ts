@@ -62,6 +62,12 @@ describe('mapAssignmentSigners', () => {
     expect(JSON.stringify(result)).not.toContain(SIGNING_URL);
   });
 
+  it.each(['Email', 'Whatsapp'] as const)('keeps biometric status and %s notification without copying evidence or CPF', (channel) => {
+    const result = mapAssignmentSigners(assignment([signer({ verification_method: 'IdDocumentFaceMatchBasic', notification_methods: [channel], identity_verification_status: 'InReview', government_id: '52998224725' })]), null);
+    expect(result[0]).toMatchObject({ verificationMethod: 'IdDocumentFaceMatchBasic', notificationMethod: channel, identityVerificationStatus: 'InReview' });
+    expect(JSON.stringify(result)).not.toContain('52998224725');
+  });
+
   it('returns the previous signers when there is no assignment', () => {
     const previous = [stored()];
     expect(mapAssignmentSigners(null, previous)).toBe(previous);

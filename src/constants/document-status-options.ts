@@ -20,4 +20,5 @@ export const DOCUMENT_STATUS_OPTIONS: Array<{
   { value: DOCUMENT_STATUS.FAILED, label: 'Falhou', position: 7, color: 'red' },
   { value: DOCUMENT_STATUS.UNCERTAIN, label: 'Confira na Assinafy', position: 8, color: 'amber' },
   { value: DOCUMENT_STATUS.UNKNOWN, label: 'Desconhecido', position: 9, color: 'gray' },
+  { value: DOCUMENT_STATUS.PENDING_IDENTITY_REVIEW, label: 'Biometria em análise', position: 10, color: 'orange' },
 ];

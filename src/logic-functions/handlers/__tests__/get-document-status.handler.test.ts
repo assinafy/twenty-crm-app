@@ -89,6 +89,13 @@ describe('getDocumentStatusHandler', () => {
     });
   });
 
+  it('explains the biometric review that holds certification even after signing', async () => {
+    refresh.mockResolvedValue(toDocumentSummary(buildDocumentRecord({ status: 'PENDING_IDENTITY_REVIEW', signers: [buildStoredSigner({ completed: true, identityVerificationStatus: 'InReview' })] })));
+    const { text } = await getDocumentStatusHandler(input, memberContext());
+    expect(text).toContain('aguarda aprovação ou recusa da biometria na Assinafy');
+    expect(text).toContain('biometria aguardando aprovação ou recusa na Assinafy');
+  });
+
   it('describes an unnamed document without signers and with an error code', async () => {
     refresh.mockResolvedValue(
       toDocumentSummary(

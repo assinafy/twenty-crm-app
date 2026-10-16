@@ -28,7 +28,8 @@ const toSignerInput = (signer: SignerDraft): SignerInput => {
     verificationMethod: signer.verificationMethod,
     notificationMethod: signer.notificationMethod,
     governmentId:
-      signer.verificationMethod === 'DigitalCertificate' && governmentId
+      (signer.verificationMethod === 'DigitalCertificate' || signer.verificationMethod === 'IdDocumentFaceMatchBasic') &&
+      governmentId
         ? (normalizeGovernmentId(governmentId) ?? governmentId)
         : null,
     roleId: signer.roleId,

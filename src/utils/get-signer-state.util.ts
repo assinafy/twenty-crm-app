@@ -5,7 +5,13 @@ import { type StoredSigner } from 'src/types/stored-signer';
 // Server-safe decision order shared by every place that describes a signer, so they never disagree.
 export const getSignerState = (signer: StoredSigner, status: DocumentStatus | null): SignerState => {
   // Assinafy only certifies once everyone signed, even when it did not report each signer's completion.
-  if (signer.completed === true || status === 'CERTIFICATING' || status === 'CERTIFICATED') return 'SIGNED';
+  if (status === 'CERTIFICATING' || status === 'CERTIFICATED') return 'SIGNED';
+  // A signer may sign while review is open, but certification waits for the account's decision.
+  if (
+    signer.identityVerificationStatus === 'InReview' &&
+    (status === 'PENDING_SIGNATURE' || status === 'PENDING_IDENTITY_REVIEW')
+  ) return 'IDENTITY_IN_REVIEW';
+  if (signer.completed === true) return 'SIGNED';
   if (signer.declined) return 'DECLINED';
   if (signer.deliveryFailed) return 'DELIVERY_FAILED';
   // A cancelled or declined request is closed: nobody else is invited or signs. Completion unknown (Assinafy reports

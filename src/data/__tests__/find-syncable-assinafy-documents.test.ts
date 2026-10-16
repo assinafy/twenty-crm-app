@@ -19,7 +19,7 @@ describe('findSyncableAssinafyDocuments', () => {
             and: [
               {
                 or: [
-                  { status: { in: ['PENDING_SIGNATURE', 'CERTIFICATING', 'UNKNOWN'] } },
+                  { status: { in: ['PENDING_SIGNATURE', 'PENDING_IDENTITY_REVIEW', 'CERTIFICATING', 'UNKNOWN'] } },
                   { status: { eq: 'UNCERTAIN' }, assinafyDocumentId: { is: 'NOT_NULL' } },
                   // SEND_LEASE_MS = 180 s before now.
                   { status: { eq: 'SENDING' }, updatedAt: { lt: '2026-06-01T11:57:00.000Z' } },

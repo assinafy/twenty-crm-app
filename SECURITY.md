@@ -56,8 +56,8 @@ app) pela página de contato da Assinafy.
   autenticados, validam rigorosamente cada entrada e respondem com códigos de erro estáveis; quando a Assinafy recusa
   uma solicitação, apenas a mensagem dela é repassada, com links, e-mails e números longos ocultados. A única rota
   pública, `/assinafy/webhook`, só existe para os webhooks opcionais: ela recusa (HTTP 401) toda entrega sem o token
-  aleatório de 256 bits do endpoint registrado pelo app, comparado em tempo constante, e, nos endpoints assinados (os
-  registrados com a chave de API), sem uma assinatura Standard Webhooks válida dos últimos cinco minutos. Uma entrega
+  aleatório de 256 bits do endpoint registrado pelo app, comparado em tempo constante, e, nos endpoints assinados
+  (registrados com chave de API ou OAuth), sem uma assinatura Standard Webhooks válida dos últimos cinco minutos. Uma entrega
   aceita apenas faz o app consultar o documento na Assinafy com as credenciais de segundo plano; o conteúdo do evento,
   que pode ter dados dos signatários e links de assinatura, nunca é guardado nem registrado em log. O token e o segredo
   de assinatura ficam no armazenamento chave-valor do app, que só ele lê.
@@ -69,6 +69,7 @@ app) pela página de contato da Assinafy.
   único faz com que um envio repetido devolva o documento existente. Um fluxo de trabalho nunca começa a chamada cobrada
   sem tempo para concluí-la, e uma execução que encontra um envio igual e recente do mesmo documento para o mesmo
   registro não envia de novo.
+- **Biometria:** o CPF validado é enviado apenas à Assinafy. Fotos, prova de vida, consentimento e evidências ficam no fluxo da Assinafy; o app guarda somente o status da verificação. A aprovação ou recusa de uma análise acontece na Assinafy.
 - **Minimização de dados:** o Twenty guarda o andamento dos signatários sem links de assinatura nem números de CPF/CNPJ.
   Os uploads não enviados são excluídos da Assinafy quando o membro sai do fluxo ou troca o arquivo ou, após 24 horas,
   pela tarefa em segundo plano, se a chave de API ou uma conexão compartilhada acessa o workspace da Assinafy deles. Os

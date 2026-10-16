@@ -13,7 +13,7 @@ import { type WebhookEndpoint } from 'src/types/webhook-endpoint';
 import { isFinalStatus } from 'src/utils/is-final-status.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
-export type WebhookOutcome = 'unauthorized' | 'ignored' | 'synced' | 'failed';
+type WebhookOutcome = 'unauthorized' | 'ignored' | 'synced' | 'failed';
 
 const OPERATION = 'receive-assinafy-webhook';
 

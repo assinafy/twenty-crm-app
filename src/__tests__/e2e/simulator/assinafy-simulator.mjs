@@ -387,7 +387,7 @@ export const createSimulator = (options) => {
       };
       state.webhookEndpoints.set(endpoint.id, endpoint);
 
-      return envelope(publicEndpoint(endpoint));
+      return envelope({ ...publicEndpoint(endpoint), ...(endpoint.secret === null ? {} : { secret: endpoint.secret }) });
     }
 
     const endpoint = state.webhookEndpoints.get(decodeURIComponent(endpointId));

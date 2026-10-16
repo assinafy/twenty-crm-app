@@ -16,6 +16,7 @@ describe('getStatusDisplay', () => {
     expect(Object.fromEntries(labels)).toEqual({
       SENDING: 'Enviando',
       PENDING_SIGNATURE: 'Aguardando assinaturas',
+      PENDING_IDENTITY_REVIEW: 'Biometria em análise',
       CERTIFICATING: 'Finalizando',
       CERTIFICATED: 'Assinado',
       REJECTED_BY_SIGNER: 'Recusado',

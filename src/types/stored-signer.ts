@@ -1,3 +1,4 @@
+import { type IDENTITY_VERIFICATION_STATUSES } from 'src/constants/signer-methods';
 import { type NotificationMethod } from 'src/types/notification-method';
 import { type VerificationMethod } from 'src/types/verification-method';
 
@@ -8,6 +9,8 @@ export type StoredSigner = {
   email: string | null;
   phone: string | null;
   verificationMethod: VerificationMethod | null;
+  // Only biometric signers carry this status; evidence and identity numbers remain in Assinafy.
+  identityVerificationStatus?: (typeof IDENTITY_VERIFICATION_STATUSES)[number] | null;
   notificationMethod: NotificationMethod | null;
   step: number | null;
   notified: boolean | null;

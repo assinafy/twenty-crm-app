@@ -11,14 +11,16 @@ import {
   frontEndToken,
   listConnectedAccounts,
   runHealthCheck,
+  runSyncCron,
 } from 'src/__tests__/e2e/e2e-twenty';
 import { graphql } from 'src/__tests__/e2e/graphql';
 import { psql } from 'src/__tests__/e2e/psql';
+import { poll } from 'src/__tests__/e2e/poll';
 import { setRegistrationVariable } from 'src/__tests__/e2e/registration-variables';
 import { type SimLogEntry, simulator } from 'src/__tests__/e2e/simulator-client';
 import { createCrmFixtures, type CrmFixtures } from 'src/__tests__/integration/crm-fixtures';
-import { callRoute, runCleanup } from 'src/__tests__/integration/twenty-api';
-import { ASSINAFY_CLIENT_ID_VARIABLE, ASSINAFY_CLIENT_SECRET_VARIABLE, ASSINAFY_OAUTH_SCOPES } from 'src/constants/assinafy';
+import { callRoute, runCleanup, setAppVariable } from 'src/__tests__/integration/twenty-api';
+import { ASSINAFY_CLIENT_ID_VARIABLE, ASSINAFY_CLIENT_SECRET_VARIABLE, ASSINAFY_OAUTH_SCOPES, ASSINAFY_WEBHOOK_EMAIL_VARIABLE } from 'src/constants/assinafy';
 import { type DocumentSummary } from 'src/types/document-summary';
 import { type SignatureContext } from 'src/types/signature-context';
 
@@ -135,6 +137,33 @@ describe('OAuth connections through the simulator', () => {
       status: 200,
       grantId: shared.grantId,
     });
+  });
+
+  it('registers and verifies signed webhooks with only an OAuth connection', async () => {
+    const endpointsAfterCron = async () => {
+      await runSyncCron(app);
+      return simulator.webhookEndpoints();
+    };
+    await setAppVariable(app, ASSINAFY_WEBHOOK_EMAIL_VARIABLE, 'oauth-webhooks@example.invalid');
+    try {
+      const [endpoint] = await poll(endpointsAfterCron, (endpoints) => endpoints.length === 1, {
+        timeoutMs: 60_000, intervalMs: 2_000, label: 'a signed OAuth webhook endpoint',
+      });
+      expect(endpoint).toMatchObject({ signing_enabled: true, signed: true });
+      const { prepared, summary } = await sendPdf(token, crm, 'Webhook OAuth E2E');
+      expect(await simulator.deliverWebhook('signer_identity_review_required', prepared.assinafyDocumentId ?? '', true)).toEqual([
+        { endpointId: endpoint!.id, status: 401, body: JSON.stringify({ outcome: 'unauthorized' }) },
+      ]);
+      expect(await simulator.deliverWebhook('signer_identity_review_required', prepared.assinafyDocumentId ?? '')).toEqual([
+        { endpointId: endpoint!.id, status: 200, body: JSON.stringify({ outcome: 'synced' }) },
+      ]);
+      expect(await callRoute('/s/assinafy/documents/cancel', token, { documentRecordId: summary.documentRecordId })).toMatchObject({ ok: true });
+    } finally {
+      await setAppVariable(app, ASSINAFY_WEBHOOK_EMAIL_VARIABLE, '');
+      await poll(endpointsAfterCron, (endpoints) => endpoints.length === 0, {
+        timeoutMs: 60_000, intervalMs: 2_000, label: 'the OAuth webhook endpoint to be removed',
+      });
+    }
   });
 
   it('refreshes an expired access token with a rotating refresh token and keeps working', async () => {

@@ -7,6 +7,7 @@ const METHOD_LABELS: Record<VerificationMethod | NotificationMethod, MessageDesc
   Email: msg('E-mail'),
   Whatsapp: msg('WhatsApp'),
   DigitalCertificate: msg('Certificado digital ICP-Brasil (A1 ou A3)'),
+  IdDocumentFaceMatchBasic: msg('Biometria facial e documento de identidade'),
 };
 
 // Verification and invitation methods share the Email and WhatsApp labels.
