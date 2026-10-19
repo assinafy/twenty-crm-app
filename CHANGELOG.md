@@ -5,6 +5,14 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-10-19
+
+### Corrigido
+
+- Solicitações com certificado digital passam a usar somente PDFs e solicitações virtuais. Modelos com certificado
+  são recusados antes da estimativa ou do envio, evitando um convite cobrado que não poderia ser assinado.
+- Atualização do `@assinafy/sdk` para a versão 2.8.1.
+
 ## [1.3.0] - 2026-10-16
 
 ### Adicionado
@@ -104,6 +112,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.3.1]: https://github.com/assinafy/twenty-crm-app/compare/v1.3.0...v1.3.1
+[1.3.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.3.0
 [1.2.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.2.0
 [1.1.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.1.0
 [1.0.1]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.0.1

@@ -111,6 +111,8 @@ O documento abre no painel lateral assim que a Assinafy aceita a solicitação. 
 
 A lista Modelo mostra os modelos prontos do seu workspace da Assinafy (os 200 primeiros). Cada papel de signatário do modelo recebe exatamente um signatário, por isso não é possível adicionar nem remover signatários. Todos os Campos do modelo atribuídos a editores precisam ser preenchidos. Modelos com papéis além de signatários e editores, como destinatários de cópia, e modelos com mais de 20 papéis de signatário ou mais de 50 campos para preencher aparecem como indisponíveis. O posicionamento dos campos de assinatura é preparado no próprio modelo da Assinafy.
 
+Por enquanto, use um PDF anexado para signatários com certificado digital. O certificado exige uma solicitação virtual, sem campos de assinatura posicionados, e o app recusa certificados em modelos até a Assinafy garantir essa regra ao criar o documento do modelo.
+
 ### Acompanhar as assinaturas
 
 A aba Assinaturas lista os Documentos Assinafy do registro com o status, o andamento e os links para download. Voltar aos documentos recarrega a lista, e um envio que ainda estava em andamento a recarrega de novo quando termina, então um envio que falhou ou não foi confirmado aparece sem precisar selecionar Atualizar. Abra um documento para ver o painel Status da assinatura, na aba Assinatura: o status, o andamento de cada signatário, as datas, os arquivos assinados e as ações que o status permite. Ao abrir um documento que não está em um status final, o app o atualiza pela Assinafy se a última verificação tiver sido há mais de 5 minutos; Atualizar faz isso a qualquer momento.
