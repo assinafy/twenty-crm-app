@@ -35,7 +35,7 @@ jobs:
         run: corepack enable
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.nvmrc'
           cache: yarn
@@ -72,7 +72,7 @@ jobs:
 
       - name: Spawn Twenty test instance
         id: twenty
-        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@1e14eecba3a8ad8c72bb09da74f7c95d21f4cf04 # twenty/v2.42.6
+        uses: twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test@1dccdfc5ad33bf11015064380e78eddcf0e69340 # twenty/v2.50.1
         with:
           twenty-version: ${{ env.TWENTY_VERSION }}
 
@@ -80,7 +80,7 @@ jobs:
         run: corepack enable
 
       - name: Setup Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: '.nvmrc'
           cache: yarn
