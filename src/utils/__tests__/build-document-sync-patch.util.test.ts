@@ -149,6 +149,17 @@ describe('buildDocumentSyncPatch', () => {
     expect(build({ record: record({ status: 'EXPIRED' }) }).status).toBe('PENDING_SIGNATURE');
   });
 
+  it('keeps an assigned processing failure open for recovery', () => {
+    const patch = build({ details: details({ status: 'failed' }) });
+    expect(patch).toMatchObject({
+      status: 'UNKNOWN',
+      lastError: 'DOCUMENT_PROCESSING_FAILED',
+      completedAt: null,
+      assinafyAssignmentId: 'assignment-1',
+      signedCount: 1,
+    });
+  });
+
   it('marks CERTIFICATED when every artifact is stored', () => {
     const storedFiles = [{ fileId: 'file-1', label: 'Service agreement - assinado.pdf' }];
     const patch = build({ details: details({ status: 'certificated' }), storedFiles, allArtifactsStored: true });
@@ -288,8 +299,8 @@ describe('buildDocumentSyncPatch', () => {
   });
 
   it('falls back to now for completedAt when Assinafy has no update time', () => {
-    const patch = build({ details: details({ status: 'failed', updated_at: '' }) });
-    expect(patch).toMatchObject({ status: 'FAILED', completedAt: NOW.toISOString() });
+    const patch = build({ details: details({ status: 'rejected_by_user', updated_at: '' }) });
+    expect(patch).toMatchObject({ status: 'CANCELLED', completedAt: NOW.toISOString() });
   });
 
   it('does not set completedAt for expired documents', () => {

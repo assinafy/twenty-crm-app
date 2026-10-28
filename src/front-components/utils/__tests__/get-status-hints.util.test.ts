@@ -32,11 +32,17 @@ describe('getStatusHints', () => {
 
   it('explains a failed send with its reason', () => {
     expect(hints({ status: 'FAILED', lastError: 'PROVIDER_UNAVAILABLE' })).toEqual([
-      ['Esta solicitação não chegou aos signatários. Remova-a e envie novamente.', undefined],
+      ['Esta solicitação falhou. Confira o motivo antes de enviar novamente.', undefined],
       ['A Assinafy está indisponível no momento. Tente novamente em alguns minutos.', undefined],
     ]);
     expect(hints({ status: 'FAILED', lastError: 'NOT_SENT' })).toHaveLength(1);
     expect(hints({ status: 'FAILED' })).toHaveLength(1);
+  });
+
+  it('does not claim that a provider processing failure never reached the signers', () => {
+    expect(hints({ status: 'FAILED' })).toEqual([
+      ['Esta solicitação falhou. Confira o motivo antes de enviar novamente.', undefined],
+    ]);
   });
 
   it('quotes the decline reason', () => {
@@ -57,6 +63,12 @@ describe('getStatusHints', () => {
   it('explains pending signed files and a failed refresh', () => {
     expect(hints({ status: 'CERTIFICATING', lastError: 'SIGNED_FILES_PENDING' })[0]?.[0]).toMatch(/ainda está sendo copiado/);
     expect(hints({ lastError: 'RECONNECT_REQUIRED' })[0]?.[0]).toMatch(/Reconecte a Assinafy/);
+  });
+
+  it('keeps a provider processing failure visible while the document remains tracked', () => {
+    expect(hints({ status: 'UNKNOWN', lastError: 'DOCUMENT_PROCESSING_FAILED' })).toEqual([
+      ['A Assinafy informou uma falha no processamento. O documento continua sendo acompanhado; confira na Assinafy antes de enviar novamente.', undefined],
+    ]);
   });
 
   it('explains a document the background sync cannot reach', () => {

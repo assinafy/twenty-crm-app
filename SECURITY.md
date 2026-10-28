@@ -48,7 +48,7 @@ app) pela página de contato da Assinafy.
   nem excluí-los, gerencia apenas os próprios registros de Documento Assinafy (sem exclusão definitiva), pode enviar os
   PDFs assinados e não tem acesso às configurações nem a outras ferramentas. As ações de um membro rodam com as
   permissões do próprio membro combinadas com essa função. Enviar exige que o membro possa criar Documentos Assinafy, e
-  reenviar e cancelar conferem, antes de qualquer chamada à Assinafy, se ele pode editar o Documento Assinafy.
+  reenviar, cancelar e alterar contratos conferem, antes de qualquer chamada à Assinafy, se ele pode editar o Documento Assinafy.
 - **Campos exclusivos do app:** todos os campos do objeto Documento Assinafy, exceto Nome, só podem ser gravados pelo
   app, então os membros não conseguem forjar status, IDs da Assinafy ou arquivos assinados. Não é possível criar
   registros pela interface.
@@ -58,7 +58,7 @@ app) pela página de contato da Assinafy.
   pública, `/assinafy/webhook`, só existe para os webhooks opcionais: ela recusa (HTTP 401) toda entrega sem o token
   aleatório de 256 bits do endpoint registrado pelo app, comparado em tempo constante, e, nos endpoints assinados
   (registrados com chave de API ou OAuth), sem uma assinatura Standard Webhooks válida dos últimos cinco minutos. Uma entrega
-  aceita apenas faz o app consultar o documento na Assinafy com as credenciais de segundo plano; o conteúdo do evento,
+  aceita apenas faz o app consultar o documento ou seus termos contratuais na Assinafy com as credenciais de segundo plano; o conteúdo do evento,
   que pode ter dados dos signatários e links de assinatura, nunca é guardado nem registrado em log. O token e o segredo
   de assinatura ficam no armazenamento chave-valor do app, que só ele lê.
 - **Chamadas de saída:** apenas para os endpoints de produção da Assinafy, por HTTPS. Os anexos são baixados apenas
@@ -70,9 +70,18 @@ app) pela página de contato da Assinafy.
   sem tempo para concluí-la, e uma execução que encontra um envio igual e recente do mesmo documento para o mesmo
   registro não envia de novo.
 - **Biometria:** o CPF validado é enviado apenas à Assinafy. Fotos, prova de vida, consentimento e evidências ficam no fluxo da Assinafy; o app guarda somente o status da verificação. A aprovação ou recusa de uma análise acontece na Assinafy.
+- **Contratos:** a rota autenticada consulta apenas o documento que o membro pode ler e exige permissão de edição
+  para salvar, renovar ou encerrar. As alterações usam uma única credencial, sem repetição automática, com a versão
+  lida e, na renovação, a vigência atual. A Assinafy confere a versão com precisão de segundos. Uma resposta incerta
+  exige nova consulta antes de continuar. Os campos exclusivos do app guardam somente o status, os termos permitidos
+  e a última verificação; CPF/CNPJ da contraparte, responsáveis, metadados, referências externas, nomes de documentos
+  relacionados e alterações detalhadas de aditivos ficam fora do resumo. Aditivos são somente leitura no Twenty.
+  Renovar e encerrar exigem confirmação; o PDF e as assinaturas permanecem intactos e nenhum convite é enviado.
 - **Minimização de dados:** o Twenty guarda o andamento dos signatários sem links de assinatura nem números de CPF/CNPJ.
-  Os uploads não enviados são excluídos da Assinafy quando o membro sai do fluxo ou troca o arquivo ou, após 24 horas,
-  pela tarefa em segundo plano, se a chave de API ou uma conexão compartilhada acessa o workspace da Assinafy deles. Os
+  O descarte de um upload preparado por um membro mantém o arquivo na Assinafy até completar 24 horas; o envio só
+  aceita uploads com menos de 23 horas. Após 24 horas, o membro pode descartá-lo enquanto o app o acompanha, ou a tarefa
+  em segundo plano o exclui se a chave de API ou uma conexão compartilhada acessa o workspace da Assinafy dele.
+  A limpeza de um upload próprio de fluxo de trabalho cujo envio comprovadamente falhou pode ser imediata. Os
   que nenhuma delas acessa, os que não puderam ser excluídos em 7 dias e os que o app deixou de acompanhar (ele acompanha
   até 200 por vez) ficam na Assinafy. Um upload só é excluído quando a Assinafy o informa como não enviado (ou como um
   upload com falha no processamento, nunca atribuído) e nenhum Documento Assinafy, exceto um que terminou em Falhou,
@@ -80,6 +89,9 @@ app) pela página de contato da Assinafy.
   Assinafy e o motivo de uma recusa são exibidos e guardados com links, endereços de e-mail e números longos
   substituídos por [link], [e-mail] e [número], com até 300 caracteres; o texto completo do motivo continua na
   Assinafy.
+- **Falhas após o envio:** um documento com falha de processamento depois de um envio confirmado continua sendo
+  acompanhado e pode voltar a ser finalizado. Ele não é tratado como upload não enviado nem liberado para exclusão
+  automática; falhas comprovadamente anteriores ao envio mantêm a limpeza dos rascunhos.
 - **Logs:** os logs registram apenas o nome da operação, um código de erro e o nome do erro. Tokens, chaves, segredos,
   links de assinatura, corpos de resposta da Assinafy e dados de contato dos signatários nunca são registrados; os
   testes unitários falham se uma credencial de teste chegar ao console.

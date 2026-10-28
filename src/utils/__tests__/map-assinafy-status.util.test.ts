@@ -15,7 +15,7 @@ describe('mapAssinafyStatus', () => {
     ['rejected_by_signer', 'REJECTED_BY_SIGNER', 'REJECTED_BY_SIGNER'],
     ['rejected_by_user', 'CANCELLED', 'CANCELLED'],
     ['expired', 'EXPIRED', 'EXPIRED'],
-    ['failed', 'FAILED', 'FAILED'],
+    ['failed', 'UNKNOWN', 'FAILED'],
     ['archived', 'UNKNOWN', 'UNKNOWN'],
     ['constructor', 'UNKNOWN', 'UNKNOWN'],
     ['', 'UNKNOWN', 'UNKNOWN'],

@@ -4,11 +4,15 @@ import { assertCanUpdateAssinafyDocument } from 'src/data/assert-can-update-assi
 import { requireAssinafyDocument } from 'src/data/require-assinafy-document';
 import { updateAssinafyDocument } from 'src/data/update-assinafy-document';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
+import { type DocumentStatus } from 'src/types/document-status';
 import { type DocumentSummary } from 'src/types/document-summary';
 import { type MemberHandlerContext } from 'src/types/member-handler-context';
 import { AppFailure } from 'src/utils/app-failure.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 import { toDocumentSummary } from 'src/utils/to-document-summary.util';
+
+const canCancel = (status: DocumentStatus | null): boolean =>
+  status === DOCUMENT_STATUS.PENDING_SIGNATURE || status === DOCUMENT_STATUS.PENDING_IDENTITY_REVIEW;
 
 // Deleting is Assinafy's only API cancellation.
 export const cancelSignatureRequestHandler = async (
@@ -18,8 +22,8 @@ export const cancelSignatureRequestHandler = async (
   const record = await requireAssinafyDocument(ctx.userCore, input.documentRecordId);
 
   const { assinafyDocumentId, assinafyAccountId } = record;
-  if (record.status !== DOCUMENT_STATUS.PENDING_SIGNATURE || !assinafyDocumentId || !assinafyAccountId) {
-    throw new AppFailure('INVALID_STATE', 'Só é possível cancelar documentos que estão aguardando assinaturas.');
+  if (!canCancel(record.status) || !assinafyDocumentId || !assinafyAccountId) {
+    throw new AppFailure('INVALID_STATE', 'Só é possível cancelar documentos que estão aguardando assinaturas ou análise da biometria.');
   }
 
   await assertCanUpdateAssinafyDocument(ctx.userCore, record);
@@ -35,7 +39,7 @@ export const cancelSignatureRequestHandler = async (
     // The re-sync is best effort, so a failed one never hides the refusal.
     if (failure.code === 'PROVIDER_REJECTED') {
       const synced = await syncAssinafyDocument(ctx, record, resolved).catch(() => null);
-      if (synced !== null && synced.status !== DOCUMENT_STATUS.PENDING_SIGNATURE) {
+      if (synced !== null && !canCancel(synced.status)) {
         throw new AppFailure('INVALID_STATE', 'O documento mudou na Assinafy e não pode mais ser cancelado.');
       }
       throw new AppFailure(

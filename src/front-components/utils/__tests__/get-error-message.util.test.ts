@@ -18,6 +18,9 @@ const CODES: AppErrorCode[] = [
   'PROVIDER_UNAVAILABLE',
   'UNCERTAIN',
   'COST_CHANGED',
+  'CONTRACT_CHANGED',
+  'CONTRACT_UNCERTAIN',
+  'CONTRACT_UNAVAILABLE',
   'INSUFFICIENT_RESOURCES',
   'COST_LIMIT_EXCEEDED',
   'INVALID_STATE',
@@ -27,6 +30,19 @@ const CODES: AppErrorCode[] = [
 const input = (details: Record<string, unknown>) => getErrorMessage({ code: 'INVALID_INPUT', message: '', details });
 
 describe('getErrorMessage', () => {
+  it.each([
+    ['terms.status', /Rascunho ou Vigente/],
+    ['terms.counterparty_name', /contraparte/],
+    ['terms.value', /duas casas decimais/],
+    ['terms.currency', /três letras/],
+    ['terms.start_date', /início da vigência/],
+    ['terms.end_date', /igual ou posterior/],
+    ['terms.renewal_term_months', /1 a 600/],
+    ['terms.notice_period_days', /0 a 3650/],
+  ])('explains the contract field %s', (field, message) => {
+    expect(input({ field, reason: 'format' }).message.message).toMatch(message);
+  });
+
   it('has a distinct message for every code', () => {
     const messages = CODES.map((code) => getErrorMessage({ code, message: '' }).message.message);
 

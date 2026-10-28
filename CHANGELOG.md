@@ -5,6 +5,32 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-28
+
+### Adicionado
+
+- Gestão de contratos no painel do Documento Assinafy: contraparte, valor, moeda, vigência, renovação automática e
+  antecedência dos avisos; renovação e encerramento com confirmação e consulta do andamento de aditivos.
+- Status, termos e última verificação do contrato no Twenty, com campos gravados somente pelo app e proteção contra
+  alterações concorrentes. Os termos não modificam o PDF nem solicitam novas assinaturas.
+- Acompanhamento dos oito eventos de contrato por webhooks autenticados e atualização periódica dos contratos
+  acompanhados, inclusive depois da conclusão das assinaturas.
+
+### Corrigido
+
+- Documentos com biometria em análise podem ser cancelados pelo painel.
+- Falhas de processamento depois de um envio confirmado continuam sendo acompanhadas e podem recuperar os PDFs
+  assinados quando a Assinafy concluir o processamento, incluindo registros de versões anteriores.
+- Descartar um upload recente mantém o PDF na fila de limpeza por 24 horas; o descarte não exclui um arquivo enquanto
+  um envio ainda pode começar. A limpeza de uploads próprios de fluxos de trabalho com falha definitiva continua imediata.
+- A orientação de um documento com falha deixa de afirmar que os convites nunca chegaram aos signatários.
+
+### Alterado
+
+- Atualização do `@assinafy/sdk` para 2.9.1 e adoção de Node.js 26 LTS no desenvolvimento e na integração contínua,
+  mantendo compatibilidade com Node.js 24 LTS.
+- Atualização de dependências de transporte HTTP, validação, geração de arquivos e testes.
+
 ## [1.3.1] - 2026-10-19
 
 ### Corrigido
@@ -112,6 +138,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.4.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.4.0
 [1.3.1]: https://github.com/assinafy/twenty-crm-app/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.3.0
 [1.2.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.2.0

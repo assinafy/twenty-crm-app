@@ -20,6 +20,9 @@ const ERROR_MESSAGES: Record<AppErrorCode, MessageDescriptor> = {
   PROVIDER_UNAVAILABLE: msg('A Assinafy está indisponível no momento. Tente novamente em alguns minutos.'),
   UNCERTAIN: msg('Confira o envio na Assinafy: a solicitação pode ter sido recebida. Verifique o documento na Assinafy antes de enviá-lo novamente.'),
   COST_CHANGED: msg('O custo mudou desde a sua revisão. Confira a nova estimativa e confirme novamente.'),
+  CONTRACT_CHANGED: msg('O contrato mudou. Atualize os termos antes de continuar.'),
+  CONTRACT_UNCERTAIN: msg('A Assinafy não confirmou a alteração. Atualize o contrato para conferir o resultado antes de continuar.'),
+  CONTRACT_UNAVAILABLE: msg('Confira se o plano da Assinafy inclui gestão de contratos e se sua conexão pode gerenciar este contrato.'),
   INSUFFICIENT_RESOURCES: msg('O saldo do workspace da Assinafy não é suficiente para esta solicitação.'),
   COST_LIMIT_EXCEEDED: msg('O custo ultrapassa o limite de créditos permitido.'),
   INVALID_STATE: msg('Este documento mudou nesse meio-tempo. Revise-o novamente.'),
@@ -55,6 +58,14 @@ const TEMPLATE_CHANGED = msg(
 // Keyed by `field:reason`, then by field, as reported in INVALID_INPUT details by the shared validators and by the
 // AI proposal tool (bare `attachmentId`, `templateId` and `signerPersonIds` fields).
 const INPUT_MESSAGES: Record<string, MessageDescriptor> = {
+  'terms.status': msg('Escolha Rascunho ou Vigente para o contrato.'),
+  'terms.counterparty_name': msg('Informe uma contraparte com até 255 caracteres.'),
+  'terms.value': msg('Informe um valor de contrato positivo ou zero, com até duas casas decimais e sem separador de milhar.'),
+  'terms.currency': msg('Informe o código da moeda com três letras, por exemplo BRL.'),
+  'terms.start_date': msg('Informe uma data válida para o início da vigência.'),
+  'terms.end_date': msg('Informe uma data válida para o fim da vigência, igual ou posterior ao início.'),
+  'terms.renewal_term_months': msg('Informe um período de renovação de 1 a 600 meses inteiros.'),
+  'terms.notice_period_days': msg('Informe uma antecedência de 0 a 3650 dias inteiros.'),
   'name:required': msg('Informe o nome do documento.'),
   name: msg('O nome do documento é longo demais (até {max} caracteres).'),
   message: msg('A mensagem é longa demais (até {max} caracteres).'),

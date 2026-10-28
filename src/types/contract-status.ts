@@ -1,0 +1,1 @@
+export type ContractStatus = 'DRAFT' | 'ACTIVE' | 'EXPIRED' | 'TERMINATED' | 'AMENDMENT_PENDING' | 'AMENDMENT_APPLIED';

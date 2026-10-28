@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { toAssinafyDocumentRecord } from 'src/data/to-assinafy-document-record';
+import { buildContract } from 'src/__tests__/fixtures/build-contract';
+import { toContractSummary } from 'src/utils/to-contract-summary.util';
 import { type StoredSigner } from 'src/types/stored-signer';
 
 const signer: StoredSigner = {
@@ -18,6 +20,29 @@ const signer: StoredSigner = {
 };
 
 describe('toAssinafyDocumentRecord', () => {
+  it.each([
+    { sentAt: '2026-01-01T00:00:00.000Z', assinafyAssignmentId: null },
+    { sentAt: null, assinafyAssignmentId: 'assignment-1' },
+  ])('reopens a legacy provider failure with send evidence (%#)', (evidence) => {
+    for (const lastError of [null, '']) {
+      expect(toAssinafyDocumentRecord({
+        id: 'record-1', updatedAt: '2026-01-02T00:00:00.000Z', status: 'FAILED',
+        completedAt: '2026-01-02T00:00:00.000Z', lastError, ...evidence,
+      })).toMatchObject({ status: 'UNKNOWN', completedAt: null, lastError: 'DOCUMENT_PROCESSING_FAILED' });
+    }
+  });
+
+  it.each([
+    { lastError: 'NOT_SENT', sentAt: null, assinafyAssignmentId: null },
+    { lastError: 'PROVIDER_REJECTED', sentAt: null, assinafyAssignmentId: null },
+    { lastError: 'PROVIDER_REJECTED', sentAt: '2026-01-01T00:00:00.000Z', assinafyAssignmentId: 'assignment-1' },
+    { lastError: null, sentAt: null, assinafyAssignmentId: '' },
+  ])('keeps a failed send without evidence of a provider processing failure final (%#)', (fields) => {
+    expect(toAssinafyDocumentRecord({
+      id: 'record-1', updatedAt: '2026-01-02T00:00:00.000Z', status: 'FAILED', ...fields,
+    }).status).toBe('FAILED');
+  });
+
   it('keeps zero signer counts, the counts of every new send', () => {
     expect(
       toAssinafyDocumentRecord({ id: 'record-1', updatedAt: '2026-01-02T00:00:00.000Z', signerCount: 0, signedCount: 0 }),
@@ -29,6 +54,9 @@ describe('toAssinafyDocumentRecord', () => {
       id: 'record-1',
       name: 'Contract',
       status: 'PENDING_SIGNATURE' as const,
+      contractStatus: 'ACTIVE' as const,
+      contractDetails: toContractSummary(buildContract(), 'doc-1'),
+      contractSyncedAt: '2026-01-02T00:00:00.000Z',
       assinafyDocumentId: 'doc-1',
       assinafyAccountId: 'account-1',
       assinafyAssignmentId: 'assignment-1',
@@ -58,6 +86,9 @@ describe('toAssinafyDocumentRecord', () => {
       id: 'record-1',
       name: null,
       status: null,
+      contractStatus: null,
+      contractDetails: null,
+      contractSyncedAt: null,
       assinafyDocumentId: null,
       assinafyAccountId: null,
       assinafyAssignmentId: null,

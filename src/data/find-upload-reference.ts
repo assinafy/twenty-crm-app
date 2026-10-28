@@ -1,6 +1,6 @@
 import { type CoreApiClient } from 'twenty-client-sdk/core';
 
-import { DOCUMENT_STATUS } from 'src/constants/document-status';
+import { DOCUMENT_STATUS, LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { findAssinafyDocuments } from 'src/data/find-assinafy-documents';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
 
@@ -14,7 +14,7 @@ export const findUploadReference = async (
   const [record] = await findAssinafyDocuments(core, {
     filter: {
       assinafyDocumentId: { eq: documentId },
-      or: [{ status: { neq: DOCUMENT_STATUS.FAILED } }, { status: { is: 'NULL' } }],
+      or: [{ status: { neq: DOCUMENT_STATUS.FAILED } }, { status: { is: 'NULL' } }, LEGACY_PROCESSING_FAILURE_FILTER],
     },
     first: 1,
   });

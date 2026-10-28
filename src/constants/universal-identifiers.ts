@@ -1,6 +1,6 @@
 export const APP_DISPLAY_NAME = 'Assinafy';
 export const APP_DESCRIPTION =
-  'Envie PDFs e modelos para assinatura eletrônica com a Assinafy e acompanhe cada assinatura pelo Twenty.';
+  'Envie documentos para assinatura com a Assinafy e gerencie seus contratos pelo Twenty.';
 
 // Application
 export const APPLICATION_UNIVERSAL_IDENTIFIER =
@@ -173,3 +173,15 @@ export const ON_DISCONNECT_UNIVERSAL_IDENTIFIER =
   '0b522734-d247-401a-a6e6-a6f3f7ccba6a';
 export const UNINSTALL_UNIVERSAL_IDENTIFIER =
   '87580485-995a-4c12-beb3-cf4760a7e83c';
+
+export const MANAGE_CONTRACT_ROUTE_UNIVERSAL_IDENTIFIER =
+  '647d28d3-64c9-47ef-83ec-3dffe8a1a546';
+
+export const CONTRACT_STATUS_FIELD_UNIVERSAL_IDENTIFIER =
+  '0c6607e8-ad06-404d-981b-98cab3438fd4';
+
+export const CONTRACT_DETAILS_FIELD_UNIVERSAL_IDENTIFIER =
+  'da69fdd6-3326-430e-8ae0-25152c3d36ef';
+
+export const CONTRACT_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER =
+  'f0fd2654-16e4-46c3-a563-8b20cbf823a7';

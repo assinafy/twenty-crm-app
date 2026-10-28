@@ -5,8 +5,10 @@ import { type RoutePayload } from 'twenty-sdk/logic-function';
 
 import { listBackgroundCredentials } from 'src/assinafy-client/list-background-credentials';
 import { resolveBackgroundAccounts } from 'src/assinafy-client/resolve-background-accounts';
+import { CONTRACT_WEBHOOK_EVENTS } from 'src/constants/assinafy';
 import { findAssinafyDocuments } from 'src/data/find-assinafy-documents';
 import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
+import { syncAssinafyContract } from 'src/services/sync-assinafy-contract.service';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
 import { type HandlerContext } from 'src/types/handler-context';
 import { type WebhookEndpoint } from 'src/types/webhook-endpoint';
@@ -56,12 +58,16 @@ export const receiveAssinafyWebhookHandler = async (
 
   const documentId = readDocumentId(event.body, endpoint.accountId);
   if (documentId === null) return 'ignored';
+  const eventType = (event.body as { event?: unknown } | null)?.event;
+  const isContractEvent = typeof eventType === 'string' && CONTRACT_WEBHOOK_EVENTS.includes(eventType);
 
   const [record] = await findAssinafyDocuments(ctx.appCore, {
     filter: { assinafyDocumentId: { eq: documentId } },
     first: 1,
   });
-  if (!record || record.assinafyAccountId !== endpoint.accountId || isFinalStatus(record.status)) return 'ignored';
+  if (!record || record.assinafyAccountId !== endpoint.accountId || (!isContractEvent && isFinalStatus(record.status))) {
+    return 'ignored';
+  }
 
   const resolved = await resolveBackgroundAccounts(OPERATION, await listBackgroundCredentials(), ctx.createAssinafyClient);
   const credential = resolved.find(({ accountId }) => accountId === endpoint.accountId);
@@ -71,7 +77,8 @@ export const receiveAssinafyWebhookHandler = async (
   }
 
   try {
-    await syncAssinafyDocument(ctx, record, credential);
+    if (isContractEvent) await syncAssinafyContract(ctx, record, credential);
+    else await syncAssinafyDocument(ctx, record, credential);
     return 'synced';
   } catch (error) {
     console.warn(`[assinafy] ${OPERATION}: sync failed`, { code: toAppError(error, 'read').code });

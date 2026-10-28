@@ -1,3 +1,5 @@
+import { type AssinafyDocumentFilter } from 'src/types/assinafy-document-filter';
+
 export const DOCUMENT_STATUS = {
   SENDING: 'SENDING',
   PENDING_SIGNATURE: 'PENDING_SIGNATURE',
@@ -27,3 +29,17 @@ export const SYNCABLE_DOCUMENT_STATUSES: readonly string[] = [
   DOCUMENT_STATUS.CERTIFICATING,
   DOCUMENT_STATUS.UNKNOWN,
 ];
+
+// Earlier versions froze provider processing failures; a rejected send always has an error code and no sentAt.
+export const LEGACY_PROCESSING_FAILURE_FILTER: AssinafyDocumentFilter = {
+  status: { eq: DOCUMENT_STATUS.FAILED },
+  and: [
+    { or: [{ lastError: { is: 'NULL' } }, { lastError: { eq: '' } }] },
+    {
+      or: [
+        { sentAt: { is: 'NOT_NULL' } },
+        { and: [{ assinafyAssignmentId: { is: 'NOT_NULL' } }, { assinafyAssignmentId: { neq: '' } }] },
+      ],
+    },
+  ],
+};

@@ -1,7 +1,8 @@
 import { type DocumentStatus } from 'src/types/document-status';
+import { type ContractStatus } from 'src/types/contract-status';
 
 type FilterIs = 'NULL' | 'NOT_NULL';
-type TextFilter = { eq?: string; is?: FilterIs };
+type TextFilter = { eq?: string; neq?: string; is?: FilterIs };
 type DateTimeFilter = { gte?: string; lt?: string; is?: FilterIs };
 
 // The assinafyDocument filters the app uses. Declared here instead of imported from the generated client so the code
@@ -11,7 +12,11 @@ export type AssinafyDocumentFilter = {
   id?: { eq?: string };
   name?: TextFilter;
   status?: { eq?: DocumentStatus; neq?: DocumentStatus; in?: DocumentStatus[]; is?: FilterIs };
+  contractStatus?: { eq?: ContractStatus; in?: ContractStatus[]; is?: FilterIs };
   assinafyDocumentId?: TextFilter;
+  assinafyAccountId?: TextFilter;
+  assinafyAssignmentId?: TextFilter;
+  lastError?: TextFilter;
   requestId?: TextFilter;
   sentAt?: DateTimeFilter;
   createdAt?: DateTimeFilter;

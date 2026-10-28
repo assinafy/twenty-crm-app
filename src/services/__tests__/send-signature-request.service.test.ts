@@ -16,6 +16,7 @@ vi.mock('src/services/read-pending-uploads.service', () => ({
   readPendingUploads: vi.fn<typeof readPendingUploads>(),
 }));
 
+import { LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { buildContext, NOW } from 'src/__tests__/fixtures/build-context';
 import { buildSignerInput } from 'src/__tests__/fixtures/build-signer-input';
 import { LEAK_SENTINELS } from 'src/__tests__/setup/unit-test-setup';
@@ -57,7 +58,7 @@ const findDocuments = vi.mocked(findAssinafyDocuments);
 const SIGNING_URL = LEAK_SENTINELS[3];
 const minutesFromNow = (minutes: number) => new Date(NOW.getTime() + minutes * 60_000).toISOString();
 const PERMISSION_DENIED = permissionDenied();
-const NOT_FAILED = { or: [{ status: { neq: 'FAILED' } }, { status: { is: 'NULL' } }] };
+const NOT_FAILED = { or: [{ status: { neq: 'FAILED' } }, { status: { is: 'NULL' } }, LEGACY_PROCESSING_FAILURE_FILTER] };
 
 const setup = () => {
   const fake = fakeAssinafyClient();

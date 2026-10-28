@@ -1,6 +1,6 @@
 import { type CoreApiClient } from 'twenty-client-sdk/core';
 
-import { DOCUMENT_STATUS } from 'src/constants/document-status';
+import { DOCUMENT_STATUS, LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { findAssinafyDocuments } from 'src/data/find-assinafy-documents';
 import { recordLinkFilter } from 'src/data/record-link-filter';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
@@ -12,9 +12,11 @@ export const findPreviousAttempt = async (
 ): Promise<AssinafyDocumentRecord | null> => {
   const [previous] = await findAssinafyDocuments(core, {
     filter: {
-      ...recordLinkFilter(recordId),
+      and: [
+        recordLinkFilter(recordId),
+        { or: [{ status: { neq: DOCUMENT_STATUS.FAILED } }, LEGACY_PROCESSING_FAILURE_FILTER] },
+      ],
       name: { eq: name },
-      status: { neq: DOCUMENT_STATUS.FAILED },
       createdAt: { gte: since.toISOString() },
     },
     first: 1,

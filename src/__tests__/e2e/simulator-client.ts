@@ -1,3 +1,5 @@
+import { type IDocumentContract, type IDocumentContractAmendment } from '@assinafy/sdk';
+
 import { dockerExec } from 'src/__tests__/e2e/docker-exec';
 import { SIM_URL } from 'src/__tests__/e2e/e2e-constants';
 
@@ -95,10 +97,14 @@ export const simulator = {
     grantedScopes?: string[] | null;
     accessTtlSeconds?: number;
     webhookEndpointLimit?: number;
+    contractTrackingEnabled?: boolean;
   }) => simRequest('POST', '/__sim/config', config),
   // The webhook endpoints the simulator emulates (the sandbox does not serve them yet), with whether each has a secret.
   webhookEndpoints: async () => (await simRequest<{ endpoints: SimWebhookEndpoint[] }>('GET', '/__sim/webhooks')).endpoints,
   // Delivers an event about a document to the subscribed endpoints, signed as Assinafy does (or with another key).
   deliverWebhook: async (event: string, documentId: string, tamper = false) =>
     (await simRequest<{ results: SimDelivery[] }>('POST', '/__sim/webhooks/deliver', { event, documentId, tamper })).results,
+  // Explicitly opts one fixture document into the CLM emulator; no contract call reaches the sandbox.
+  seedContract: (documentId: string, contract: IDocumentContract | IDocumentContractAmendment | null, accountId?: string) =>
+    simRequest('POST', '/__sim/contracts/seed', { documentId, contract, ...(accountId === undefined ? {} : { accountId }) }),
 };

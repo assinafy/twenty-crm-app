@@ -12,6 +12,7 @@ import {
   SYNC_TIMEOUT_SECONDS,
 } from 'src/constants/limits';
 import { findSyncableAssinafyDocuments } from 'src/data/find-syncable-assinafy-documents';
+import { findContractsToSync } from 'src/data/find-contracts-to-sync';
 import { updateAssinafyDocument } from 'src/data/update-assinafy-document';
 import {
   apiKeyCredential,
@@ -23,6 +24,7 @@ import { purgePendingUploads } from 'src/services/purge-pending-uploads.service'
 import { readPendingUploads } from 'src/services/read-pending-uploads.service';
 import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
 import { reconcileWebhookEndpoints } from 'src/services/reconcile-webhook-endpoints.service';
+import { syncAssinafyContract } from 'src/services/sync-assinafy-contract.service';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
 import { AppFailure } from 'src/utils/app-failure.util';
 import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
@@ -30,10 +32,12 @@ import { readWebhookEmail } from 'src/utils/read-webhook-email.util';
 vi.mock('src/assinafy-client/list-background-credentials', () => ({ listBackgroundCredentials: vi.fn<typeof listBackgroundCredentials>() }));
 vi.mock('src/assinafy-client/resolve-credential-account', () => ({ resolveCredentialAccount: vi.fn<typeof resolveCredentialAccount>() }));
 vi.mock('src/data/find-syncable-assinafy-documents', () => ({ findSyncableAssinafyDocuments: vi.fn<typeof findSyncableAssinafyDocuments>() }));
+vi.mock('src/data/find-contracts-to-sync', () => ({ findContractsToSync: vi.fn<typeof findContractsToSync>() }));
 vi.mock('src/data/update-assinafy-document', () => ({ updateAssinafyDocument: vi.fn<typeof updateAssinafyDocument>() }));
 vi.mock('src/services/purge-pending-uploads.service', () => ({ purgePendingUploads: vi.fn<typeof purgePendingUploads>() }));
 vi.mock('src/services/read-pending-uploads.service', () => ({ readPendingUploads: vi.fn<typeof readPendingUploads>() }));
 vi.mock('src/services/sync-assinafy-document.service', () => ({ syncAssinafyDocument: vi.fn<typeof syncAssinafyDocument>() }));
+vi.mock('src/services/sync-assinafy-contract.service', () => ({ syncAssinafyContract: vi.fn<typeof syncAssinafyContract>() }));
 vi.mock('src/services/read-webhook-endpoints.service', () => ({ readWebhookEndpoints: vi.fn<typeof readWebhookEndpoints>() }));
 vi.mock('src/services/reconcile-webhook-endpoints.service', () => ({ reconcileWebhookEndpoints: vi.fn<typeof reconcileWebhookEndpoints>() }));
 vi.mock('src/utils/read-webhook-email.util', () => ({ readWebhookEmail: vi.fn<typeof readWebhookEmail>() }));
@@ -66,6 +70,8 @@ describe('syncAssinafyDocumentsHandler', () => {
     listCredentials.mockResolvedValue([apiKeyCredential, sharedCredential]);
     resolve.mockImplementation(async (credential) => (credential === apiKeyCredential ? keyAccount : sharedAccount));
     sync.mockImplementation(async (_ctx, record) => record);
+    vi.mocked(findContractsToSync).mockResolvedValue([]);
+    vi.mocked(syncAssinafyContract).mockResolvedValue(null);
     update.mockImplementation(async (_core, id) => buildDocumentRecord({ id }));
     purge.mockResolvedValue(2);
     vi.mocked(readPendingUploads).mockResolvedValue([]);
@@ -122,6 +128,7 @@ describe('syncAssinafyDocumentsHandler', () => {
       purged: 0,
     });
     expect(findSyncable).toHaveBeenCalledWith(ctx.appCore, { now: NOW, limit: SYNC_BATCH_SIZE });
+    expect(findContractsToSync).toHaveBeenCalledWith(ctx.appCore, SYNC_BATCH_SIZE);
     expect(listCredentials).not.toHaveBeenCalled();
     expect(purge).not.toHaveBeenCalled();
   });
@@ -185,6 +192,17 @@ describe('syncAssinafyDocumentsHandler', () => {
       [ctx.appCore, 'r-1', patch],
       [ctx.appCore, 'r-2', patch],
     ]);
+  });
+
+  it('keeps a recovered legacy processing failure open when no credential can reach it', async () => {
+    findSyncable.mockResolvedValue([{
+      ...recordFor('legacy-1', 'acc-9'), status: 'UNKNOWN', lastError: 'DOCUMENT_PROCESSING_FAILED',
+    }]);
+
+    await expect(syncAssinafyDocumentsHandler(buildContext())).resolves.toMatchObject({ skipped: 1 });
+    expect(update).toHaveBeenCalledWith(expect.anything(), 'legacy-1', {
+      status: 'UNKNOWN', completedAt: null, lastError: 'NO_CREDENTIAL', lastSyncedAt: NOW.toISOString(),
+    });
   });
 
   it('settles a send abandoned before Assinafy created its document without a credential', async () => {
@@ -274,5 +292,60 @@ describe('syncAssinafyDocumentsHandler', () => {
       code: 'PROVIDER_UNAVAILABLE',
     });
     expect(sync).not.toHaveBeenCalled();
+  });
+
+  it('polls contracts after certification even when no signature needs a sync', async () => {
+    findSyncable.mockResolvedValue([]);
+    const contract = buildDocumentRecord({ id: 'contract-1', status: 'CERTIFICATED' });
+    vi.mocked(findContractsToSync).mockResolvedValue([contract]);
+    const ctx = buildContext();
+
+    await expect(syncAssinafyDocumentsHandler(ctx)).resolves.toEqual({
+      found: 1, synced: 1, failed: 0, skipped: 0, purged: 2,
+    });
+
+    expect(syncAssinafyContract).toHaveBeenCalledExactlyOnceWith(ctx, contract, keyAccount);
+    expect(sync).not.toHaveBeenCalled();
+  });
+
+  it('alternates signature and contract syncs within the shared time budget', async () => {
+    findSyncable.mockResolvedValue([recordFor('signature-1', 'acc-1'), recordFor('signature-2', 'acc-1')]);
+    vi.mocked(findContractsToSync).mockResolvedValue([recordFor('contract-1', 'acc-2'), recordFor('contract-2', 'acc-2')]);
+    const order: string[] = [];
+    sync.mockImplementation(async (_ctx, record) => { order.push(record.id); return record; });
+    vi.mocked(syncAssinafyContract).mockImplementation(async (_ctx, record) => { order.push(record.id); return null; });
+    const now = vi.fn<() => Date>()
+      .mockReturnValueOnce(NOW)
+      .mockReturnValueOnce(at(1_000))
+      .mockReturnValueOnce(at(2_000))
+      .mockReturnValueOnce(at(BUDGET_MS - 1))
+      .mockReturnValue(at(BUDGET_MS));
+
+    await expect(syncAssinafyDocumentsHandler(buildContext({ now }))).resolves.toMatchObject({ found: 4, synced: 3 });
+
+    expect(order).toEqual(['signature-1', 'contract-1', 'signature-2']);
+    expect(syncAssinafyContract).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ id: 'contract-1' }), sharedAccount);
+  });
+
+  it('rotates a contract without a credential without overwriting signature status or errors', async () => {
+    findSyncable.mockResolvedValue([]);
+    vi.mocked(findContractsToSync).mockResolvedValue([recordFor('contract-1', 'acc-9')]);
+    const ctx = buildContext();
+
+    await expect(syncAssinafyDocumentsHandler(ctx)).resolves.toMatchObject({ found: 1, skipped: 1, synced: 0 });
+
+    expect(update).toHaveBeenCalledExactlyOnceWith(ctx.appCore, 'contract-1', { contractSyncedAt: NOW.toISOString() });
+    expect(syncAssinafyContract).not.toHaveBeenCalled();
+  });
+
+  it('continues through contract failures and still processes signatures', async () => {
+    findSyncable.mockResolvedValue([recordFor('signature-1', 'acc-1'), recordFor('signature-2', 'acc-1')]);
+    vi.mocked(findContractsToSync).mockResolvedValue([recordFor('contract-1', 'acc-1')]);
+    vi.mocked(syncAssinafyContract).mockRejectedValue(new AppFailure('RATE_LIMITED', 'Slow down'));
+
+    await expect(syncAssinafyDocumentsHandler(buildContext())).resolves.toMatchObject({ found: 3, synced: 2, failed: 1 });
+
+    expect(sync).toHaveBeenCalledTimes(2);
+    expect(console.warn).toHaveBeenCalledWith('[assinafy] sync-assinafy-documents: record failed', { code: 'RATE_LIMITED' });
   });
 });

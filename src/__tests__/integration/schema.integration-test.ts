@@ -19,6 +19,7 @@ import {
   PERSON_ASSINAFY_DOCUMENTS_FIELD_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
 import { type RecordConnection } from 'src/types/record-connection';
+import { postGraphql } from 'src/__tests__/integration/post-graphql';
 
 const NOT_WRITABLE = (field: string) => new RegExp(`field "${field}" on "assinafyDocument" is not writable through the API`);
 
@@ -77,6 +78,9 @@ describe('installed schema', () => {
       name: { type: 'TEXT', writability: 'OPEN' },
       status: appOnly('SELECT'),
       assinafyDocumentId: appOnly('TEXT'),
+      contractStatus: appOnly('SELECT'),
+      contractDetails: appOnly('RAW_JSON'),
+      contractSyncedAt: appOnly('DATE_TIME'),
       assinafyAccountId: appOnly('TEXT'),
       assinafyAssignmentId: appOnly('TEXT'),
       requestId: appOnly('TEXT'),
@@ -105,6 +109,19 @@ describe('installed schema', () => {
           index.indexFieldMetadataList[0]?.fieldMetadataId === requestIdFieldId,
       ),
     ).toBe(true);
+  });
+
+  it.each(['Person', 'Company', 'Opportunity'])('does not expose inverse document-link writes on %s inputs', async (object) => {
+    for (const operation of ['Create', 'Update']) {
+      const { __type: input } = await postGraphql<{ __type: { inputFields: Array<{ name: string }> } | null }>(
+        `${process.env.TWENTY_API_URL}/graphql`,
+        USER_TOKEN,
+        'query ($name: String!) { __type(name: $name) { inputFields { name } } }',
+        { name: `${object}${operation}Input` },
+      );
+      expect(input).not.toBeNull();
+      expect(input!.inputFields.map(({ name }) => name)).not.toContain('assinafyDocuments');
+    }
   });
 });
 
@@ -164,6 +181,20 @@ describe.each([
         updateAssinafyDocument: { __args: { id: created.id, data: { personId: crypto.randomUUID() } }, id: true },
       }),
     ).rejects.toThrow(NOT_WRITABLE('person'));
+  });
+
+  it.each([
+    ['contractStatus', { contractStatus: 'ACTIVE' as const }],
+    ['contractDetails', { contractDetails: { kind: 'contract', status: 'active' } }],
+    ['contractSyncedAt', { contractSyncedAt: '2026-10-28T12:00:00.000Z' }],
+  ] as const)('cannot forge %s on creation or update', async (field, data) => {
+    await expect(core.mutation({
+      createAssinafyDocument: { __args: { data: { name: 'Forged contract', ...data } }, id: true },
+    })).rejects.toThrow(NOT_WRITABLE(field));
+    const created = await createNameOnly();
+    await expect(core.mutation({
+      updateAssinafyDocument: { __args: { id: created.id, data }, id: true },
+    })).rejects.toThrow(NOT_WRITABLE(field));
   });
 
   it('may delete a record', async () => {

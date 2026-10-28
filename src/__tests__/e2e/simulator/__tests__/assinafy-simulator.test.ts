@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { WebhookVerifier } from '@assinafy/sdk';
+import { AssinafyClient, WebhookVerifier } from '@assinafy/sdk';
 
+import { buildContract } from 'src/__tests__/fixtures/build-contract';
 import { createSimulator } from 'src/__tests__/e2e/simulator/assinafy-simulator.mjs';
 
 const UPSTREAM_KEY = 'test-api-key-9c1e';
@@ -861,6 +862,135 @@ describe('webhook endpoints', () => {
     expect((await admin('POST', '/webhooks/deliver', { event: 'document_ready', documentId: 'doc-1' })).body.results).toEqual([
       { endpointId: expect.any(String), status: 0, body: '' },
     ]);
+  });
+});
+
+describe('contract fixtures', () => {
+  const documentId = 'doc-1';
+  const path = `/accounts/${ACCOUNT_ID}/documents/doc-1/contract`;
+  const seed = (contract: object | null = buildContract({ end_date: '2030-10-31' })) =>
+    admin('POST', '/contracts/seed', { documentId, contract });
+  const sdk = () => new AssinafyClient({ baseUrl: `${base}/v1`, accountId: ACCOUNT_ID, apiKey: APP_API_KEY, maxRetries: 0 });
+
+  it('requires an explicitly seeded document and preserves the account boundary', async () => {
+    expect((await withKey(path)).status).toBe(404);
+    expect((await seed(null)).status).toBe(200);
+    expect((await withKey(path)).status).toBe(404);
+    expect((await withKey(path.replace(ACCOUNT_ID, 'acc-2'))).status).toBe(404);
+    expect((await withKey(path, { method: 'DELETE' })).status).toBe(405);
+    expect((await withKey(`${path}/renew`)).status).toBe(405);
+    expect(upstreamRequests).toEqual([]);
+  });
+
+  it.each([
+    {},
+    { documentId: '', contract: null },
+    { documentId: 'doc-1', accountId: '', contract: null },
+    { documentId: 'doc-1', contract: [] },
+    { documentId: 'doc-1', contract: { document_id: 'doc-2' } },
+  ])('rejects an invalid seed (%o)', async (body) => {
+    expect((await admin('POST', '/contracts/seed', body)).status).toBe(400);
+  });
+
+  it('accepts installed SDK payloads for get, set, renew and terminate without forwarding them', async () => {
+    await seed(null);
+    const client = sdk();
+    const created = await client.contracts.set('doc-1', {
+      status: 'active', counterparty_name: 'Empresa Exemplo', value: 1200.5, currency: 'BRL',
+      start_date: '2030-01-01', end_date: '2030-10-31', renewal_term_months: 12, auto_renew: false,
+    });
+    expect(created).toMatchObject({ resource: 'document_contract', document_id: 'doc-1', value: 1200.5, term: 1 });
+    expect(await client.contracts.get('doc-1')).toEqual(created);
+    const renewed = await client.contracts.renew('doc-1', { term: 1, updated_at: created.updated_at });
+    expect(renewed).toMatchObject({ status: 'active', end_date: '2031-10-31', term: 2, value: 1200.5 });
+    const terminated = await client.contracts.terminate('doc-1', { reason: 'Fim do contrato', updated_at: renewed.updated_at });
+    expect(terminated.status).toBe('terminated');
+    await expect(client.contracts.renew('doc-1', { term: 2 })).rejects.toMatchObject({ statusCode: 400 });
+    expect(upstreamRequests).toEqual([]);
+  });
+
+  it('rejects stale revisions and repeated renewals without applying them again', async () => {
+    await seed();
+    const client = sdk();
+    const original = await client.contracts.get('doc-1');
+    const updated = await client.contracts.set('doc-1', { value: 90, updated_at: original.updated_at });
+    expect(updated.updated_at).not.toBe(original.updated_at);
+    await expect(client.contracts.set('doc-1', { value: 900, updated_at: original.updated_at })).rejects.toMatchObject({ statusCode: 409 });
+    expect(await client.contracts.get('doc-1')).toMatchObject({ value: 90 });
+    const renewed = await client.contracts.renew('doc-1', { term: 1, updated_at: updated.updated_at });
+    await expect(client.contracts.renew('doc-1', { term: 1 })).rejects.toMatchObject({ statusCode: 400 });
+    await expect(client.contracts.terminate('doc-1', { updated_at: updated.updated_at })).rejects.toMatchObject({ statusCode: 409 });
+    expect(await client.contracts.get('doc-1')).toMatchObject({ term: renewed.term });
+  });
+
+  it('keeps unchanged terms at the same revision and rejects unsupported writes', async () => {
+    const contract = buildContract();
+    await seed(contract);
+    const unchanged = await sdk().contracts.set('doc-1', { value: contract.value, updated_at: contract.updated_at });
+    expect(unchanged.updated_at).toBe(contract.updated_at);
+    for (const body of [{}, { parent_document_id: 'parent-1' }]) {
+      expect((await withKey(path, { method: 'PUT', body: JSON.stringify(body) })).status).toBe(400);
+    }
+  });
+
+  it('leaves reads available after plan removal but refuses all mutations', async () => {
+    await seed();
+    await admin('POST', '/config', { contractTrackingEnabled: false });
+    expect((await withKey(path)).status).toBe(200);
+    for (const [method, suffix] of [['PUT', ''], ['POST', '/renew'], ['POST', '/terminate']]) {
+      expect((await withKey(`${path}${suffix}`, { method, body: '{}' })).status).toBe(403);
+    }
+  });
+
+  it('enforces documents read/write scopes and the OAuth workspace for contracts', async () => {
+    await seed();
+    const { access_token: reader } = await connect('documents:read');
+    expect((await api(path, reader)).status).toBe(200);
+    const denied = await api(path, reader, { method: 'PUT', body: JSON.stringify({ value: 1 }) });
+    expect(denied.status).toBe(403);
+    expect(denied.headers.get('www-authenticate')).toBe('Bearer error="insufficient_scope", scope="documents:write"');
+    const { access_token: writer } = await connect('documents:write');
+    expect((await api(path, writer)).status).toBe(403);
+    expect((await api(path, writer, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: '{"value":1}' })).status).toBe(200);
+    expect((await api(path.replace(ACCOUNT_ID, 'acc-2'), writer, { method: 'PUT', body: '{}' })).status).toBe(403);
+    expect(upstreamRequests).toEqual([]);
+  });
+
+  it('keeps an applied mutation behind an injected error and sends it only once with retries disabled', async () => {
+    await seed();
+    await admin('POST', '/faults', { rules: [{ method: 'PUT', pathRegex: '/contract$', phase: 'after', times: 1, action: { status: 500 } }] });
+    const client = sdk();
+
+    await expect(client.contracts.set('doc-1', { value: 999 })).rejects.toMatchObject({ statusCode: 500 });
+
+    expect(await client.contracts.get('doc-1')).toMatchObject({ value: 999 });
+    const { entries } = (await admin('GET', '/log')).body;
+    expect(entries.filter((entry: { method: string; path: string }) => entry.method === 'PUT' && entry.path.endsWith('/contract')))
+      .toEqual([expect.objectContaining({ status: 500, fault: 'after:500' })]);
+  });
+
+  it('accepts explicit renewal dates once and advances expired terms into the future', async () => {
+    await seed(buildContract({ end_date: '2030-01-31', renewal_term_months: 1 }));
+    const client = sdk();
+    expect(await client.contracts.renew('doc-1', { term: 1 })).toMatchObject({ end_date: '2030-02-28', term: 2 });
+    expect(await client.contracts.renew('doc-1', { end_date: '2030-06-30', value: null })).toMatchObject({ end_date: '2030-06-30', value: null, term: 3 });
+    await expect(client.contracts.renew('doc-1', { end_date: '2030-06-30' })).rejects.toMatchObject({ statusCode: 400 });
+    await seed(buildContract({ status: 'expired', end_date: '2020-01-01', renewal_term_months: null }));
+    const renewed = await client.contracts.renew('doc-1', { term: 1 });
+    expect(renewed.status).toBe('active');
+    expect(Date.parse(renewed.end_date ?? '')).toBeGreaterThan(Date.now());
+  });
+
+  it('refuses renewal without terms, a date or a term, and keeps amendment fixtures read-only', async () => {
+    await seed(null);
+    expect((await withKey(`${path}/renew`, { method: 'POST', body: '{}' })).status).toBe(404);
+    await seed(buildContract({ end_date: null }));
+    await expect(sdk().contracts.renew('doc-1', { term: 1 })).rejects.toMatchObject({ statusCode: 400 });
+    await seed();
+    expect((await withKey(`${path}/renew`, { method: 'POST', body: '{}' })).status).toBe(400);
+    await seed({ resource: 'document_contract_amendment', document_id: 'doc-1', status: 'pending' });
+    expect(await sdk().contracts.get('doc-1')).toMatchObject({ resource: 'document_contract_amendment', status: 'pending' });
+    await expect(sdk().contracts.set('doc-1', { value: 10 })).rejects.toMatchObject({ statusCode: 400 });
   });
 });
 

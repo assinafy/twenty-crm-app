@@ -28,7 +28,7 @@ export const getStatusHints = (
       ];
     case 'FAILED':
       return [
-        { message: msg('Esta solicitação não chegou aos signatários. Remova-a e envie novamente.') },
+        { message: msg('Esta solicitação falhou. Confira o motivo antes de enviar novamente.') },
         ...(lastError && lastError !== 'NOT_SENT' ? [getErrorMessage({ code: lastError })] : []),
       ];
     case 'REJECTED_BY_SIGNER':
@@ -40,6 +40,14 @@ export const getStatusHints = (
     case 'CANCELLED':
       return lastError === 'NOT_FOUND' ? [{ message: msg('Este documento foi excluído na Assinafy.') }] : [];
     default:
+      if (lastError === 'DOCUMENT_PROCESSING_FAILED') {
+        return [
+          {
+            message: msg('A Assinafy informou uma falha no processamento. O documento continua sendo acompanhado; confira na Assinafy antes de enviar novamente.'),
+          },
+        ];
+      }
+
       if (lastError === 'SIGNED_FILES_PENDING') {
         return [
           {

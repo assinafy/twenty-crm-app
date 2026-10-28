@@ -1,6 +1,6 @@
 import { type CoreApiClient } from 'twenty-client-sdk/core';
 
-import { DOCUMENT_STATUS, SYNCABLE_DOCUMENT_STATUSES } from 'src/constants/document-status';
+import { DOCUMENT_STATUS, LEGACY_PROCESSING_FAILURE_FILTER, SYNCABLE_DOCUMENT_STATUSES } from 'src/constants/document-status';
 import { DAY_MS, SEND_LEASE_MS, SYNC_WINDOW_DAYS } from 'src/constants/limits';
 import { findAssinafyDocuments } from 'src/data/find-assinafy-documents';
 import { type AssinafyDocumentRecord } from 'src/types/assinafy-document-record';
@@ -23,6 +23,7 @@ export const findSyncableAssinafyDocuments = (
             { status: { in: SYNCABLE_DOCUMENT_STATUSES as DocumentStatus[] } },
             { status: { eq: DOCUMENT_STATUS.UNCERTAIN }, assinafyDocumentId: { is: 'NOT_NULL' } },
             { status: { eq: DOCUMENT_STATUS.SENDING }, updatedAt: { lt: leaseExpiredBefore } },
+            LEGACY_PROCESSING_FAILURE_FILTER,
           ],
         },
         {
@@ -31,7 +32,10 @@ export const findSyncableAssinafyDocuments = (
             // UNCERTAIN and SENDING records were never confirmed as sent.
             {
               sentAt: { is: 'NULL' },
-              status: { in: [DOCUMENT_STATUS.UNCERTAIN, DOCUMENT_STATUS.SENDING] },
+              or: [
+                { status: { in: [DOCUMENT_STATUS.UNCERTAIN, DOCUMENT_STATUS.SENDING] } },
+                LEGACY_PROCESSING_FAILURE_FILTER,
+              ],
               createdAt: { gte: windowStart },
             },
           ],

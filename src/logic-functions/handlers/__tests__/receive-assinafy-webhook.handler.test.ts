@@ -7,10 +7,12 @@ import { buildContext } from 'src/__tests__/fixtures/build-context';
 import { buildDocumentRecord } from 'src/__tests__/fixtures/build-document-record';
 import { listBackgroundCredentials } from 'src/assinafy-client/list-background-credentials';
 import { resolveBackgroundAccounts } from 'src/assinafy-client/resolve-background-accounts';
+import { CONTRACT_WEBHOOK_EVENTS, WEBHOOK_EVENTS } from 'src/constants/assinafy';
 import { findAssinafyDocuments } from 'src/data/find-assinafy-documents';
 import { apiKeyCredential, buildResolved } from 'src/logic-functions/handlers/__tests__/document-handler-fixtures';
 import { receiveAssinafyWebhookHandler } from 'src/logic-functions/handlers/receive-assinafy-webhook.handler';
 import { readWebhookEndpoints } from 'src/services/read-webhook-endpoints.service';
+import { syncAssinafyContract } from 'src/services/sync-assinafy-contract.service';
 import { syncAssinafyDocument } from 'src/services/sync-assinafy-document.service';
 import { type WebhookEndpoint } from 'src/types/webhook-endpoint';
 import { AppFailure } from 'src/utils/app-failure.util';
@@ -19,6 +21,7 @@ vi.mock('src/assinafy-client/list-background-credentials', () => ({ listBackgrou
 vi.mock('src/assinafy-client/resolve-background-accounts', () => ({ resolveBackgroundAccounts: vi.fn<typeof resolveBackgroundAccounts>() }));
 vi.mock('src/data/find-assinafy-documents', () => ({ findAssinafyDocuments: vi.fn<typeof findAssinafyDocuments>() }));
 vi.mock('src/services/read-webhook-endpoints.service', () => ({ readWebhookEndpoints: vi.fn<typeof readWebhookEndpoints>() }));
+vi.mock('src/services/sync-assinafy-contract.service', () => ({ syncAssinafyContract: vi.fn<typeof syncAssinafyContract>() }));
 vi.mock('src/services/sync-assinafy-document.service', () => ({ syncAssinafyDocument: vi.fn<typeof syncAssinafyDocument>() }));
 
 const KEY = Buffer.from('webhook-signing-key');
@@ -72,6 +75,7 @@ describe('receiveAssinafyWebhookHandler', () => {
     vi.mocked(listBackgroundCredentials).mockResolvedValue([apiKeyCredential]);
     vi.mocked(resolveBackgroundAccounts).mockResolvedValue([credential]);
     vi.mocked(syncAssinafyDocument).mockResolvedValue(record);
+    vi.mocked(syncAssinafyContract).mockResolvedValue(null);
   });
 
   it('re-reads the document of a signed delivery from Assinafy with the workspace credential, as the app', async () => {
@@ -92,6 +96,83 @@ describe('receiveAssinafyWebhookHandler', () => {
     await expect(
       receiveAssinafyWebhookHandler(delivery(body, { base64: true, headers: signHeaders(JSON.stringify(body)) }), buildContext()),
     ).resolves.toBe('synced');
+  });
+
+  it.each([
+    'document_contract_updated',
+    'document_contract_renewal_notice',
+    'document_contract_expiring',
+    'document_contract_expired',
+    'document_contract_renewed',
+    'document_contract_terminated',
+    'document_contract_amended',
+    'document_contract_amendment_updated',
+  ])('subscribes to %s and refreshes contract terms after signature certification', async (event) => {
+    const certified = { ...record, status: 'CERTIFICATED' as const };
+    vi.mocked(findAssinafyDocuments).mockResolvedValue([certified]);
+    const ctx = buildContext();
+
+    expect(CONTRACT_WEBHOOK_EVENTS).toContain(event);
+    expect(WEBHOOK_EVENTS).toContain(event);
+    await expect(receiveAssinafyWebhookHandler(delivery(eventBody({ event })), ctx)).resolves.toBe('synced');
+
+    expect(syncAssinafyContract).toHaveBeenCalledExactlyOnceWith(ctx, certified, credential);
+    expect(syncAssinafyDocument).not.toHaveBeenCalled();
+  });
+
+  it('uses only the event document, ignoring linked IDs and contract terms in the payload', async () => {
+    const ctx = buildContext();
+    const body = eventBody({
+      event: 'document_contract_amendment_updated',
+      payload: { parent_document_id: 'unrelated-document', terms: { value: 12345 } },
+    });
+
+    await expect(receiveAssinafyWebhookHandler(delivery(body), ctx)).resolves.toBe('synced');
+
+    expect(findAssinafyDocuments).toHaveBeenCalledExactlyOnceWith(ctx.appCore, {
+      filter: { assinafyDocumentId: { eq: 'doc-1' } },
+      first: 1,
+    });
+    expect(syncAssinafyContract).toHaveBeenCalledExactlyOnceWith(ctx, record, credential);
+  });
+
+  it('authenticates contract events before reading the tracked document', async () => {
+    await expect(receiveAssinafyWebhookHandler(
+      delivery(eventBody({ event: 'document_contract_updated' }), { headers: {} }),
+      buildContext(),
+    )).resolves.toBe('unauthorized');
+
+    expect(findAssinafyDocuments).not.toHaveBeenCalled();
+    expect(syncAssinafyContract).not.toHaveBeenCalled();
+  });
+
+  it('does not read contract terms for another account', async () => {
+    await expect(receiveAssinafyWebhookHandler(
+      delivery(eventBody({ event: 'document_contract_updated', account_id: 'acc-9' })),
+      buildContext(),
+    )).resolves.toBe('ignored');
+
+    expect(findAssinafyDocuments).not.toHaveBeenCalled();
+    expect(syncAssinafyContract).not.toHaveBeenCalled();
+  });
+
+  it('leaves failed contract refreshes for polling without changing signature status', async () => {
+    vi.mocked(syncAssinafyContract).mockRejectedValue(new AppFailure('RATE_LIMITED', 'Slow down'));
+
+    await expect(receiveAssinafyWebhookHandler(
+      delivery(eventBody({ event: 'document_contract_updated' })),
+      buildContext(),
+    )).resolves.toBe('failed');
+
+    expect(syncAssinafyDocument).not.toHaveBeenCalled();
+    expect(console.warn).toHaveBeenCalledWith('[assinafy] receive-assinafy-webhook: sync failed', { code: 'RATE_LIMITED' });
+  });
+
+  it('treats a delivery without an event name as a signature refresh', async () => {
+    await expect(receiveAssinafyWebhookHandler(delivery(eventBody({ event: undefined })), buildContext())).resolves.toBe('synced');
+
+    expect(syncAssinafyDocument).toHaveBeenCalledTimes(1);
+    expect(syncAssinafyContract).not.toHaveBeenCalled();
   });
 
   it('accepts a delivery to an unsigned endpoint on its token alone', async () => {

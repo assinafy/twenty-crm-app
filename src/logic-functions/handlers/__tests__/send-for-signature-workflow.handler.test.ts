@@ -1,6 +1,7 @@
 import { ApiError } from '@assinafy/sdk';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { buildContext, NOW } from 'src/__tests__/fixtures/build-context';
 import { buildCostEstimate } from 'src/__tests__/fixtures/build-cost-estimate';
 import { listBackgroundCredentials } from 'src/assinafy-client/list-background-credentials';
@@ -225,13 +226,15 @@ describe('sendForSignatureWorkflowHandler', () => {
         });
         expect(findAssinafyDocuments).toHaveBeenCalledExactlyOnceWith(appCore, {
           filter: {
-            or: [
-              { personId: { eq: OPPORTUNITY_ID } },
-              { companyId: { eq: OPPORTUNITY_ID } },
-              { opportunityId: { eq: OPPORTUNITY_ID } },
+            and: [
+              { or: [
+                { personId: { eq: OPPORTUNITY_ID } },
+                { companyId: { eq: OPPORTUNITY_ID } },
+                { opportunityId: { eq: OPPORTUNITY_ID } },
+              ] },
+              { or: [{ status: { neq: 'FAILED' } }, LEGACY_PROCESSING_FAILURE_FILTER] },
             ],
             name: { eq: 'contract' },
-            status: { neq: 'FAILED' },
             createdAt: { gte: new Date(NOW.getTime() - 180_000).toISOString() },
           },
           first: 1,

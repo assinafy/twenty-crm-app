@@ -28,7 +28,17 @@ export const ASSINAFY_WEBHOOK_EMAIL_VARIABLE = 'ASSINAFY_WEBHOOK_EMAIL';
 // The route Assinafy delivers webhook events to, under the workspace's functions URL.
 export const WEBHOOK_ROUTE_PATH = '/assinafy/webhook';
 export const WEBHOOK_ENDPOINT_NAME = 'Twenty';
-// Events that change a document's status or its signers' progress; every one triggers a re-read of the document.
+export const CONTRACT_WEBHOOK_EVENTS = [
+  'document_contract_updated',
+  'document_contract_renewal_notice',
+  'document_contract_expiring',
+  'document_contract_expired',
+  'document_contract_renewed',
+  'document_contract_terminated',
+  'document_contract_amended',
+  'document_contract_amendment_updated',
+];
+// Deliveries re-read the document's signature state or contract terms from Assinafy.
 export const WEBHOOK_EVENTS = [
   'signer_signed_document',
   'signer_rejected_document',
@@ -40,6 +50,7 @@ export const WEBHOOK_EVENTS = [
   'signer_identity_review_required',
   'signer_identity_review_approved',
   'signer_identity_review_rejected',
+  ...CONTRACT_WEBHOOK_EVENTS,
 ];
 // Standard Webhooks headers Twenty forwards to the webhook route.
 export const WEBHOOK_SIGNATURE_HEADERS = ['webhook-id', 'webhook-timestamp', 'webhook-signature'];

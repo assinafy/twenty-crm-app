@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { fakeCore } from 'src/data/__tests__/fake-core';
 import { findRecentSends } from 'src/data/find-recent-sends';
 
@@ -14,6 +15,7 @@ describe('findRecentSends', () => {
           { node: { id: 'doc-record-1', name: 'Contrato', status: 'PENDING_SIGNATURE' } },
           { node: { id: 'doc-record-2', name: '', status: 'UNCERTAIN' } },
           { node: { id: 'doc-record-3', name: 'Proposta', status: null } },
+          { node: { id: 'legacy-record', name: 'Contrato antigo', status: 'FAILED' } },
         ],
       },
     });
@@ -22,6 +24,7 @@ describe('findRecentSends', () => {
       { documentRecordId: 'doc-record-1', name: 'Contrato', status: 'PENDING_SIGNATURE' },
       { documentRecordId: 'doc-record-2', name: null, status: 'UNCERTAIN' },
       { documentRecordId: 'doc-record-3', name: 'Proposta', status: null },
+      { documentRecordId: 'legacy-record', name: 'Contrato antigo', status: 'UNKNOWN' },
     ]);
     expect(query).toHaveBeenCalledExactlyOnceWith({
       assinafyDocuments: {
@@ -36,7 +39,7 @@ describe('findRecentSends', () => {
                 ],
               },
               {
-                status: {
+                or: [{ status: {
                   in: [
                     'SENDING',
                     'PENDING_SIGNATURE',
@@ -49,7 +52,7 @@ describe('findRecentSends', () => {
                     'UNCERTAIN',
                     'UNKNOWN',
                   ],
-                },
+                } }, LEGACY_PROCESSING_FAILURE_FILTER],
               },
               { createdAt: { gte: '2026-09-25T11:00:00.000Z' } },
             ],

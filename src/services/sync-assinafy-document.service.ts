@@ -159,6 +159,7 @@ export const syncAssinafyDocument = async (
     try {
       await updateAssinafyDocument(ctx.appCore, record.id, {
         lastSyncedAt: now.toISOString(),
+        ...(record.lastError === 'DOCUMENT_PROCESSING_FAILED' ? { status: DOCUMENT_STATUS.UNKNOWN, completedAt: null } : {}),
         // A final status keeps its error code: a refresh failure is only reported to the caller, since no later sync
         // of a final record would clear it.
         ...(isFinalStatus(record.status) ? {} : { lastError: failure.code }),

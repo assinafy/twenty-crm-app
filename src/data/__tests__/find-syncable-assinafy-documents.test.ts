@@ -4,6 +4,14 @@ import { fakeCore } from 'src/data/__tests__/fake-core';
 import { ASSINAFY_DOCUMENT_SELECTION } from 'src/data/assinafy-document-selection';
 import { findSyncableAssinafyDocuments } from 'src/data/find-syncable-assinafy-documents';
 
+const legacyFailure = {
+  status: { eq: 'FAILED' },
+  and: [
+    { or: [{ lastError: { is: 'NULL' } }, { lastError: { eq: '' } }] },
+    { or: [{ sentAt: { is: 'NOT_NULL' } }, { and: [{ assinafyAssignmentId: { is: 'NOT_NULL' } }, { assinafyAssignmentId: { neq: '' } }] }] },
+  ],
+};
+
 describe('findSyncableAssinafyDocuments', () => {
   it('asks for open documents within the sync window, least recently checked first', async () => {
     const { core, query } = fakeCore({
@@ -23,6 +31,7 @@ describe('findSyncableAssinafyDocuments', () => {
                   { status: { eq: 'UNCERTAIN' }, assinafyDocumentId: { is: 'NOT_NULL' } },
                   // SEND_LEASE_MS = 180 s before now.
                   { status: { eq: 'SENDING' }, updatedAt: { lt: '2026-06-01T11:57:00.000Z' } },
+                  legacyFailure,
                 ],
               },
               {
@@ -31,7 +40,7 @@ describe('findSyncableAssinafyDocuments', () => {
                   { sentAt: { gte: '2026-02-01T12:00:00.000Z' } },
                   {
                     sentAt: { is: 'NULL' },
-                    status: { in: ['UNCERTAIN', 'SENDING'] },
+                    or: [{ status: { in: ['UNCERTAIN', 'SENDING'] } }, legacyFailure],
                     createdAt: { gte: '2026-02-01T12:00:00.000Z' },
                   },
                 ],

@@ -20,5 +20,7 @@ export const mapAssinafyStatus = (assinafyStatus: string, options: { sent: boole
   if (DRAFT_STATUSES.includes(status)) {
     return options.sent ? DOCUMENT_STATUS.PENDING_SIGNATURE : DOCUMENT_STATUS.UNCERTAIN;
   }
+  // Assinafy can recover a processing failure after signing and certify the document later.
+  if (status === 'failed' && options.sent) return DOCUMENT_STATUS.UNKNOWN;
   return STATUS_BY_ASSINAFY_STATUS.get(status) ?? DOCUMENT_STATUS.UNKNOWN;
 };

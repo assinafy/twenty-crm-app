@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 
 import {
   E2E_SIGNER,
@@ -193,7 +193,7 @@ describe('API key credential through the simulator', () => {
     });
   });
 
-  it('/discard deletes a fresh upload the member prepared and forgets it', async () => {
+  it('/discard keeps a fresh upload queued for cleanup after the send window', async () => {
     const prepared = await prepare(token, pdfRequest(crm, 'Descartado E2E'));
     const documentId = prepared.assinafyDocumentId ?? '';
     expect(await readPendingUploads(app.id)).toContainEqual(expect.objectContaining({ documentId, userWorkspaceId: expect.any(String) }));
@@ -203,10 +203,9 @@ describe('API key credential through the simulator', () => {
     expect(await callRoute('/s/assinafy/discard', token, { assinafyDocumentId: documentId, accountId: prepared.accountId })).toEqual({
       ok: true,
     });
-    expect(calls(await simulator.logSince(mark), 'DELETE', new RegExp(`^/v1/documents/${documentId}$`))).toEqual([
-      expect.objectContaining({ status: 200 }),
-    ]);
-    expect((await readPendingUploads(app.id)).map((entry) => entry.documentId)).not.toContain(documentId);
+    expect(calls(await simulator.logSince(mark), 'DELETE', new RegExp(`^/v1/documents/${documentId}$`))).toEqual([]);
+    expect(await simulator.documentStatus(inject('simApiKey'), documentId)).toBe('metadata_ready');
+    expect(await readPendingUploads(app.id)).toContainEqual(expect.objectContaining({ documentId, userWorkspaceId: expect.any(String) }));
   });
 
   it('/discard refuses an upload another member prepared and deletes nothing', async () => {
@@ -223,12 +222,14 @@ describe('API key credential through the simulator', () => {
     expect(calls(await simulator.logSince(mark), 'DELETE', /^\/v1\/documents\//)).toEqual([]);
     expect((await readPendingUploads(app.id)).map((entry) => entry.documentId)).toContain(documentId);
 
-    // Handed back to the member, it can be discarded.
+    // Handed back to the member, discard accepts it and keeps it queued for cleanup.
     await waitUntilProcessed(documentId);
     await patchPendingUpload(app.id, documentId, { userWorkspaceId: own?.userWorkspaceId ?? null });
     expect(await callRoute('/s/assinafy/discard', token, { assinafyDocumentId: documentId, accountId: prepared.accountId })).toEqual({
       ok: true,
     });
+    expect(calls(await simulator.logSince(mark), 'DELETE', /^\/v1\/documents\//)).toEqual([]);
+    expect((await readPendingUploads(app.id)).map((entry) => entry.documentId)).toContain(documentId);
   });
 
   it('sends a template, then cancels it', async ({ skip }) => {

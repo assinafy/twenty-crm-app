@@ -1,6 +1,6 @@
 import { type CoreApiClient } from 'twenty-client-sdk/core';
 
-import { DOCUMENT_STATUS } from 'src/constants/document-status';
+import { DOCUMENT_STATUS, LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { MAX_RECENT_SENDS } from 'src/constants/limits';
 import { recordLinkFilter } from 'src/data/record-link-filter';
 import { type DocumentStatus } from 'src/types/document-status';
@@ -23,7 +23,7 @@ export const findRecentSends = async (core: CoreApiClient, recordId: string, sin
         filter: {
           and: [
             recordLinkFilter(recordId),
-            { status: { in: MAYBE_SENT_STATUSES } },
+            { or: [{ status: { in: MAYBE_SENT_STATUSES } }, LEGACY_PROCESSING_FAILURE_FILTER] },
             { createdAt: { gte: since.toISOString() } },
           ],
         },
@@ -38,6 +38,6 @@ export const findRecentSends = async (core: CoreApiClient, recordId: string, sin
   return (assinafyDocuments?.edges ?? []).map(({ node }) => ({
     documentRecordId: node.id,
     name: node.name || null,
-    status: node.status || null,
+    status: node.status === DOCUMENT_STATUS.FAILED ? DOCUMENT_STATUS.UNKNOWN : node.status || null,
   }));
 };

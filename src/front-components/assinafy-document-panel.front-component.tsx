@@ -14,6 +14,7 @@ import { Button } from 'twenty-ui/primitives/input';
 
 import { DOCUMENT_PANEL_FRONT_COMPONENT_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { findAssinafyDocument } from 'src/data/find-assinafy-document';
+import { ContractPanel } from 'src/front-components/components/contract-panel';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
 import { LoadingStatus } from 'src/front-components/components/loading-status';
@@ -95,6 +96,15 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
       callAppRoute<DocumentSummary>('/s/assinafy/documents/refresh', { documentRecordId: recordId }),
     );
   }, [recordId, runAction]);
+
+  const runContractTask = useCallback((task: () => Promise<void>) => runExclusive(async () => {
+    setBusyAction('contract');
+    try {
+      await task();
+    } finally {
+      setBusyAction(null);
+    }
+  }), [runExclusive]);
 
   useEffect(() => {
     let active = true;
@@ -312,6 +322,9 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
           </Button>
         ) : null}
       </div>
+      {record.sentAt && record.assinafyDocumentId ? (
+        <ContractPanel documentRecordId={documentRecordId} disabled={locked} runTask={runContractTask} />
+      ) : null}
     </div>
   );
 };

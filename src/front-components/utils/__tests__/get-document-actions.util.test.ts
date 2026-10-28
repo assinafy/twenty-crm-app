@@ -30,6 +30,16 @@ describe('getDocumentActions', () => {
     ).toEqual([]);
   });
 
+  it('allows cancellation during biometric review without offering another invitation', () => {
+    expect(
+      getDocumentActions({
+        status: 'PENDING_IDENTITY_REVIEW',
+        assinafyDocumentId: 'doc-1',
+        signers: [signer('reviewing', { completed: true, identityVerificationStatus: 'InReview' })],
+      }),
+    ).toEqual({ cancel: true, remove: false, resendSignerIds: [] });
+  });
+
   it.each([
     ['FAILED', 'doc-1', true],
     ['UNCERTAIN', null, true],

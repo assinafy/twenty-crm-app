@@ -101,6 +101,30 @@ describe('syncAssinafyDocument — records without an Assinafy answer', () => {
 });
 
 describe('syncAssinafyDocument — refresh', () => {
+  it('continues tracking an assigned processing failure and stores its PDFs after recovery', async () => {
+    const { fake, sync } = setup();
+    fake.documents.details.mockResolvedValueOnce(documentDetails({ status: 'failed', assignment: assignment() }));
+
+    const failed = await sync(pending());
+    expect(failed).toMatchObject({ status: 'UNKNOWN', lastError: 'DOCUMENT_PROCESSING_FAILED', completedAt: null });
+    expect(fake.documents.download).not.toHaveBeenCalled();
+
+    fake.documents.details.mockResolvedValueOnce(documentDetails({ status: 'certificated', artifacts: ARTIFACTS }));
+    const signed = await sync(failed);
+    expect(signed).toMatchObject({ status: 'CERTIFICATED', lastError: null });
+    expect(signed.signedDocument).toHaveLength(1);
+    expect(fake.documents.download).toHaveBeenCalledExactlyOnceWith('doc-1', 'certificated');
+  });
+
+  it('persists recovery of a legacy processing failure even when its next provider read fails', async () => {
+    const { fake, sync } = setup();
+    fake.documents.details.mockRejectedValue(new NetworkError('timeout'));
+
+    await expect(sync(pending({ status: 'UNKNOWN', lastError: 'DOCUMENT_PROCESSING_FAILED' })))
+      .rejects.toMatchObject({ code: 'PROVIDER_UNAVAILABLE' });
+    expect(lastPatch()).toMatchObject({ status: 'UNKNOWN', completedAt: null, lastError: 'PROVIDER_UNAVAILABLE' });
+  });
+
   it('keeps biometric review open until approval and only then stores the signed PDF', async () => {
     const { fake, sync } = setup();
     fake.documents.details.mockResolvedValueOnce(documentDetails({

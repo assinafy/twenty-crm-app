@@ -82,24 +82,29 @@ describe('cancelSignatureRequestHandler', () => {
     expect(updateDocument).not.toHaveBeenCalled();
   });
 
-  it('deletes the document with the credential of its account and stores CANCELLED as the app', async () => {
-    const ctx = memberContext();
-    const patch = {
-      status: 'CANCELLED',
-      completedAt: NOW.toISOString(),
-      lastSyncedAt: NOW.toISOString(),
-      lastError: null,
-    };
+  it.each(['PENDING_SIGNATURE', 'PENDING_IDENTITY_REVIEW'] as const)(
+    'cancels a document %s with its account credential and stores CANCELLED as the app',
+    async (status) => {
+      record = buildDocumentRecord({ status });
+      findDocument.mockResolvedValue(record);
+      const ctx = memberContext();
+      const patch = {
+        status: 'CANCELLED',
+        completedAt: NOW.toISOString(),
+        lastSyncedAt: NOW.toISOString(),
+        lastError: null,
+      };
 
-    await expect(cancelSignatureRequestHandler(input, ctx)).resolves.toEqual(
-      toDocumentSummary({ ...record, ...patch, status: 'CANCELLED' }),
-    );
-    expect(findDocument).toHaveBeenCalledWith(ctx.userCore, DOCUMENT_RECORD_ID);
-    expect(selectCredential).toHaveBeenCalledWith(ctx, 'acc-1');
-    expect(deleteDocument).toHaveBeenCalledWith('doc-1');
-    expect(updateDocument).toHaveBeenCalledWith(ctx.appCore, DOCUMENT_RECORD_ID, patch);
-    expect(sync).not.toHaveBeenCalled();
-  });
+      await expect(cancelSignatureRequestHandler(input, ctx)).resolves.toEqual(
+        toDocumentSummary({ ...record, ...patch, status: 'CANCELLED' }),
+      );
+      expect(findDocument).toHaveBeenCalledWith(ctx.userCore, DOCUMENT_RECORD_ID);
+      expect(selectCredential).toHaveBeenCalledWith(ctx, 'acc-1');
+      expect(deleteDocument).toHaveBeenCalledWith('doc-1');
+      expect(updateDocument).toHaveBeenCalledWith(ctx.appCore, DOCUMENT_RECORD_ID, patch);
+      expect(sync).not.toHaveBeenCalled();
+    },
+  );
 
   it('keeps an existing completion date', async () => {
     findDocument.mockResolvedValue(buildDocumentRecord({ completedAt: '2026-09-21T00:00:00.000Z' }));
@@ -146,6 +151,16 @@ describe('cancelSignatureRequestHandler', () => {
       // The app's own text: the front end shows it without the provider prefix.
       details: undefined,
     });
+  });
+
+  it('keeps the provider refusal when the re-sync moves the document into biometric review', async () => {
+    deleteDocument.mockRejectedValue(new ApiError('Document cannot be deleted yet', 400));
+    sync.mockResolvedValue(buildDocumentRecord({ status: 'PENDING_IDENTITY_REVIEW' }));
+
+    await expect(cancelSignatureRequestHandler(input, memberContext())).rejects.toMatchObject({
+      code: 'PROVIDER_REJECTED',
+    });
+    expect(updateDocument).not.toHaveBeenCalled();
   });
 
   it.each(['CERTIFICATING', 'CERTIFICATED', 'REJECTED_BY_SIGNER', 'EXPIRED'] as const)(

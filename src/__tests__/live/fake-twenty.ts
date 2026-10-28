@@ -59,6 +59,9 @@ export const createAssinafyDocument: typeof CreateAssinafyDocument = async (_cor
     throw new Error('duplicate key value violates unique constraint');
   }
   const record: AssinafyDocumentRecord = {
+    contractStatus: null,
+    contractDetails: null,
+    contractSyncedAt: null,
     assinafyDocumentId: null,
     assinafyAccountId: null,
     assinafyAssignmentId: null,

@@ -10,9 +10,8 @@ import { toAppError } from 'src/utils/to-app-error.util';
 
 // Deleting a sent document cancels it for every signer, so only this account's unsent (or failed, unassigned) uploads
 // qualify, and only when no record other than a FAILED send points at them. The record check runs last, right before
-// the delete, but it only sees claims made before it. The purge is safe because sends refuse uploads older than
-// PENDING_UPLOAD_SEND_CUTOFF_MS; the discard route relies on the front end never discarding an upload a send was
-// attempted with.
+// the delete, but it only sees claims made before it. Discard and purge wait until PENDING_UPLOAD_TTL_MS, an hour
+// after sends refuse uploads at PENDING_UPLOAD_SEND_CUTOFF_MS, so every accepted send has already claimed its record.
 export const deleteUnsentUpload = async (
   resolved: ResolvedCredential,
   documentId: string,

@@ -12,7 +12,7 @@ export const findAssinafyDocuments = async (
   core: CoreApiClient,
   args: {
     filter: AssinafyDocumentFilter;
-    orderBy?: Array<{ createdAt?: OrderByDirection; sentAt?: OrderByDirection; lastSyncedAt?: OrderByDirection }>;
+    orderBy?: Array<{ createdAt?: OrderByDirection; sentAt?: OrderByDirection; lastSyncedAt?: OrderByDirection; contractSyncedAt?: OrderByDirection }>;
     first: number;
   },
 ): Promise<AssinafyDocumentRecord[]> => {

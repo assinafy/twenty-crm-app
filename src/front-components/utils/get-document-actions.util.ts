@@ -7,7 +7,7 @@ export const getDocumentActions = (
   const pending = record.status === 'PENDING_SIGNATURE';
 
   return {
-    cancel: pending,
+    cancel: pending || record.status === 'PENDING_IDENTITY_REVIEW',
     remove: record.status === 'FAILED' || (record.status === 'UNCERTAIN' && record.assinafyDocumentId === null),
     // Only a signer who already received the invitation and has not signed can get it again.
     resendSignerIds: pending

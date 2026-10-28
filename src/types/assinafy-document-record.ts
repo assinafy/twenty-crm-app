@@ -1,4 +1,6 @@
 import { type DocumentStatus } from 'src/types/document-status';
+import { type ContractStatus } from 'src/types/contract-status';
+import { type ContractSummary } from 'src/types/contract-summary';
 import { type StoredSigner } from 'src/types/stored-signer';
 
 // The assinafyDocument fields the app reads and writes.
@@ -6,6 +8,9 @@ export type AssinafyDocumentRecord = {
   id: string;
   name: string | null;
   status: DocumentStatus | null;
+  contractStatus: ContractStatus | null;
+  contractDetails: ContractSummary | null;
+  contractSyncedAt: string | null;
   assinafyDocumentId: string | null;
   assinafyAccountId: string | null;
   assinafyAssignmentId: string | null;

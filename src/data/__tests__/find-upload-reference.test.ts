@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { LEGACY_PROCESSING_FAILURE_FILTER } from 'src/constants/document-status';
 import { fakeCore } from 'src/data/__tests__/fake-core';
 import { ASSINAFY_DOCUMENT_SELECTION } from 'src/data/assinafy-document-selection';
 import { findUploadReference } from 'src/data/find-upload-reference';
@@ -16,7 +17,7 @@ describe('findUploadReference', () => {
         __args: {
           filter: {
             assinafyDocumentId: { eq: 'doc-1' },
-            or: [{ status: { neq: 'FAILED' } }, { status: { is: 'NULL' } }],
+            or: [{ status: { neq: 'FAILED' } }, { status: { is: 'NULL' } }, LEGACY_PROCESSING_FAILURE_FILTER],
           },
           first: 1,
         },

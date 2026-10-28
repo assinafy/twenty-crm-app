@@ -9,6 +9,7 @@ import {
 } from 'twenty-sdk/define';
 
 import { DOCUMENT_STATUS_OPTIONS } from 'src/constants/document-status-options';
+import { CONTRACT_STATUS_OPTIONS } from 'src/constants/contract-status';
 import {
   ASSINAFY_ACCOUNT_ID_FIELD_UNIVERSAL_IDENTIFIER,
   ASSINAFY_ASSIGNMENT_ID_FIELD_UNIVERSAL_IDENTIFIER,
@@ -17,6 +18,9 @@ import {
   COMPANY_ASSINAFY_DOCUMENTS_FIELD_UNIVERSAL_IDENTIFIER,
   COMPANY_FIELD_UNIVERSAL_IDENTIFIER,
   COMPLETED_AT_FIELD_UNIVERSAL_IDENTIFIER,
+  CONTRACT_STATUS_FIELD_UNIVERSAL_IDENTIFIER,
+  CONTRACT_DETAILS_FIELD_UNIVERSAL_IDENTIFIER,
+  CONTRACT_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER,
   DECLINE_REASON_FIELD_UNIVERSAL_IDENTIFIER,
   EXPIRES_AT_FIELD_UNIVERSAL_IDENTIFIER,
   LAST_ERROR_FIELD_UNIVERSAL_IDENTIFIER,
@@ -74,6 +78,35 @@ export default defineObject({
       label: 'ID do documento na Assinafy',
       icon: 'IconHash',
       writability: APP_ONLY,
+    },
+    {
+      universalIdentifier: CONTRACT_STATUS_FIELD_UNIVERSAL_IDENTIFIER,
+      type: FieldType.SELECT,
+      name: 'contractStatus',
+      label: 'Status do contrato',
+      description: 'Situação dos termos contratuais, independente do andamento das assinaturas.',
+      icon: 'IconFileDescription',
+      writability: APP_ONLY,
+      options: CONTRACT_STATUS_OPTIONS,
+    },
+    {
+      universalIdentifier: CONTRACT_DETAILS_FIELD_UNIVERSAL_IDENTIFIER,
+      type: FieldType.RAW_JSON,
+      name: 'contractDetails',
+      label: 'Termos do contrato',
+      description: 'Resumo dos termos ou do aditivo, sem CPF/CNPJ, metadados privados ou documentos relacionados.',
+      icon: 'IconFileDescription',
+      writability: APP_ONLY,
+      isAuditLogged: false,
+    },
+    {
+      universalIdentifier: CONTRACT_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER,
+      type: FieldType.DATE_TIME,
+      name: 'contractSyncedAt',
+      label: 'Última verificação do contrato',
+      icon: 'IconRefresh',
+      writability: APP_ONLY,
+      isAuditLogged: false,
     },
     {
       universalIdentifier: ASSINAFY_ACCOUNT_ID_FIELD_UNIVERSAL_IDENTIFIER,

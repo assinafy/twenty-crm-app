@@ -70,6 +70,10 @@ describe.skipIf(!HAS_WORKSPACE_API_KEY)('app routes called with the workspace AP
     ['/s/assinafy/documents/refresh', { documentRecordId: UNKNOWN_ID }],
     ['/s/assinafy/documents/resend', { documentRecordId: UNKNOWN_ID, signerId: 'signer1' }],
     ['/s/assinafy/documents/cancel', { documentRecordId: UNKNOWN_ID }],
+    ['/s/assinafy/documents/contract', { documentRecordId: UNKNOWN_ID, action: 'get' }],
+    ['/s/assinafy/documents/contract', { documentRecordId: UNKNOWN_ID, action: 'set' }],
+    ['/s/assinafy/documents/contract', { documentRecordId: UNKNOWN_ID, action: 'renew' }],
+    ['/s/assinafy/documents/contract', { documentRecordId: UNKNOWN_ID, action: 'terminate' }],
   ] as const)('%s answers FORBIDDEN', async (path, body) => {
     expect(await callRoute(path, WORKSPACE_API_KEY, body)).toMatchObject({ ok: false, error: { code: 'FORBIDDEN' } });
   });
@@ -106,6 +110,18 @@ describe('app routes called by a workspace member', () => {
     expect(
       await callRoute('/s/assinafy/documents/cancel', USER_TOKEN, { documentRecordId: 'not-a-uuid' }),
     ).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', details: { field: 'documentRecordId' } } });
+  });
+
+  it('validates contract actions before contacting Assinafy', async () => {
+    expect(await callRoute('/s/assinafy/documents/contract', USER_TOKEN, { documentRecordId: 'not-a-uuid', action: 'get' })).toMatchObject({
+      ok: false, error: { code: 'INVALID_INPUT', details: { field: 'documentRecordId' } },
+    });
+    expect(await callRoute('/s/assinafy/documents/contract', USER_TOKEN, { documentRecordId: UNKNOWN_ID, action: 'get', accountId: 'other-account' })).toMatchObject({
+      ok: false, error: { code: 'INVALID_INPUT', details: { reason: 'unknown_key' } },
+    });
+    expect(await callRoute('/s/assinafy/documents/contract', USER_TOKEN, { documentRecordId: UNKNOWN_ID, action: 'delete' })).toMatchObject({
+      ok: false, error: { code: 'INVALID_INPUT', details: { field: 'action' } },
+    });
   });
 
   it('/context on a person offers its PDF attachments, the person as signer and the company colleagues', async () => {
@@ -178,6 +194,7 @@ describe('app routes called by a workspace member', () => {
     ['/s/assinafy/documents/refresh', { documentRecordId: UNKNOWN_ID }],
     ['/s/assinafy/documents/resend', { documentRecordId: UNKNOWN_ID, signerId: 'signer1' }],
     ['/s/assinafy/documents/cancel', { documentRecordId: UNKNOWN_ID }],
+    ['/s/assinafy/documents/contract', { documentRecordId: UNKNOWN_ID, action: 'get' }],
   ] as const)('%s on an unknown document answers NOT_FOUND', async (path, body) => {
     expect(await callRoute(path, USER_TOKEN, body)).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
   });
@@ -199,6 +216,21 @@ describe('app routes called by a workspace member', () => {
     expect(
       await callRoute('/s/assinafy/documents/resend', USER_TOKEN, { documentRecordId, signerId: 'signer1' }),
     ).toMatchObject({ ok: false, error: { code: 'INVALID_STATE' } });
+  });
+
+  it('/documents/contract refuses an unconfirmed document before any provider call', async () => {
+    const documentRecordId = await createUnsentDocument();
+    const terms = { status: 'draft', counterparty_name: null, value: null, currency: 'BRL', start_date: null, end_date: null, auto_renew: false, renewal_term_months: null, notice_period_days: null };
+    for (const action of [
+      { action: 'get' },
+      { action: 'set', terms, updatedAt: null },
+      { action: 'renew', updatedAt: '2026-10-28T12:00:00Z', term: 1 },
+      { action: 'terminate', updatedAt: '2026-10-28T12:00:00Z', reason: null },
+    ]) {
+      expect(await callRoute('/s/assinafy/documents/contract', USER_TOKEN, { documentRecordId, ...action })).toMatchObject({
+        ok: false, error: { code: 'INVALID_STATE' },
+      });
+    }
   });
 
   it('/documents/refresh returns a record the app never sent as it is', async () => {

@@ -9,7 +9,7 @@ import { parseDocumentActionInput } from 'src/utils/parse-document-action-input.
 export default defineLogicFunction({
   universalIdentifier: CANCEL_SIGNATURE_REQUEST_ROUTE_UNIVERSAL_IDENTIFIER,
   name: 'cancel-assinafy-signature-request',
-  description: 'Cancela uma solicitação de assinatura que ainda está aguardando assinaturas.',
+  description: 'Cancela uma solicitação que ainda está aguardando assinaturas ou análise da biometria.',
   timeoutSeconds: 60,
   httpRouteTriggerSettings: { path: '/assinafy/documents/cancel', httpMethod: 'POST', isAuthRequired: true },
   handler: (event: RoutePayload, context: LogicFunctionExecutionContext) =>

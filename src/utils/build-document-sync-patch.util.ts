@@ -33,6 +33,7 @@ export const buildDocumentSyncPatch = ({
   });
   // Signed only once every signed PDF is in Twenty; until then the next sync retries the downloads.
   const filesPending = frozenStatus === null && mapped === DOCUMENT_STATUS.CERTIFICATED && !allArtifactsStored;
+  const processingFailed = mapped === DOCUMENT_STATUS.UNKNOWN && details.status.toLowerCase() === 'failed';
   const status = frozenStatus ?? (filesPending ? DOCUMENT_STATUS.CERTIFICATING : mapped);
 
   // Without an assignment Assinafy tells nothing about signers, so the stored ones and their counts stay.
@@ -59,6 +60,8 @@ export const buildDocumentSyncPatch = ({
     ...(storedFiles ? { signedDocument: storedFiles } : {}),
     lastSyncedAt: now.toISOString(),
     // A kept final status keeps its error code (e.g. why a send failed).
-    ...(frozenStatus === null ? { lastError: filesPending ? 'SIGNED_FILES_PENDING' : null } : {}),
+    ...(frozenStatus === null
+      ? { lastError: filesPending ? 'SIGNED_FILES_PENDING' : processingFailed ? 'DOCUMENT_PROCESSING_FAILED' : null }
+      : {}),
   };
 };

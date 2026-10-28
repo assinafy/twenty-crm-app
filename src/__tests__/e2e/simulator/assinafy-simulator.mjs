@@ -1,6 +1,6 @@
 // Local stand-in for Assinafy used by the end-to-end suite: an auto-approving OAuth server plus a /v1 proxy that
-// swaps simulator-issued Bearer tokens for the sandbox API key. Webhook endpoints, which the sandbox does not serve yet,
-// are emulated in memory, and the suite asks the simulator to deliver signed (Standard Webhooks) events to them. Zero dependencies so it can run inside the Twenty
+// swaps simulator-issued Bearer tokens for the sandbox API key. Webhooks and explicitly seeded contract fixtures are
+// emulated in memory; the suite requests signed (Standard Webhooks) deliveries. Zero dependencies so it can run inside the Twenty
 // test container with `node assinafy-simulator.mjs`.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -26,8 +26,14 @@ const DEFAULT_CONFIG = {
   revokeAccessEndsGrant: false,
   // Endpoints per workspace: 1 on the free plan, 3 on paid plans.
   webhookEndpointLimit: 1,
+  contractTrackingEnabled: true,
 };
 const WEBHOOK_PATH = /^\/accounts\/([^/]+)\/webhooks\/endpoints(?:\/([^/]+))?(\/secret)?$/;
+const CONTRACT_PATH = /^\/accounts\/([^/]+)\/documents\/([^/]+)\/contract(?:\/(renew|terminate))?$/;
+const CONTRACT_FIELDS = [
+  'status', 'counterparty_name', 'counterparty_taxpayer_id', 'value', 'currency', 'start_date', 'end_date',
+  'auto_renew', 'renewal_term_months', 'notice_period_days', 'owner_id', 'metadata', 'external_references',
+];
 const KNOWN_GRANT_TYPES = ['authorization_code', 'refresh_token'];
 const KNOWN_HINTS = ['access_token', 'refresh_token'];
 // Request headers worth forwarding upstream; credentials and hop-by-hop headers are rebuilt or dropped.
@@ -169,6 +175,7 @@ export const createSimulator = (options) => {
       faults: [],
       log: [],
       webhookEndpoints: new Map(),
+      contracts: new Map(),
     };
   };
   resetState();
@@ -417,6 +424,71 @@ export const createSimulator = (options) => {
     return envelope(publicEndpoint(endpoint));
   };
 
+  // Only seeded documents have simulated contract state. Other document APIs still reach the sandbox.
+  const contracts = async (req, apiPath) => {
+    const [, encodedAccount, encodedDocument, action] = CONTRACT_PATH.exec(apiPath);
+    const accountId = decodeURIComponent(encodedAccount);
+    const documentId = decodeURIComponent(encodedDocument);
+    const entry = state.contracts.get(documentId);
+    if (!entry || entry.accountId !== accountId) return apiError(404, 'Document not found');
+    const current = entry.contract;
+    if (req.method === 'GET' && action === undefined) {
+      return current === null ? apiError(404, 'No contract terms') : envelope(current);
+    }
+    if ((action === undefined && req.method !== 'PUT') || (action !== undefined && req.method !== 'POST')) {
+      return apiError(405, 'Method not allowed');
+    }
+    if (!state.config.contractTrackingEnabled) return apiError(403, 'Contract tracking is not available for your current plan');
+    const body = await parseParams(req);
+    if (body.updated_at != null && body.updated_at !== current?.updated_at) return apiError(409, 'Contract changed');
+    if (current?.resource === 'document_contract_amendment') return apiError(400, 'Amendment writes are not simulated');
+    const stamp = new Date(Math.max(now(), Date.parse(current?.updated_at ?? '') + 1 || 0)).toISOString();
+    if (action === undefined) {
+      const keys = Object.keys(body).filter((key) => key !== 'updated_at');
+      if (keys.length === 0 || keys.some((key) => !CONTRACT_FIELDS.includes(key))) return apiError(400, 'Unsupported contract terms');
+      const next = current ?? {
+        resource: 'document_contract', document_id: documentId, status: 'draft', term: 1,
+        counterparty_name: null, counterparty_taxpayer_id: null, value: null, currency: null,
+        start_date: null, end_date: null, auto_renew: false, renewal_term_months: null, notice_period_days: null,
+        owner_id: null, metadata: null, external_references: [], amendments: [], created_at: stamp, updated_at: stamp,
+      };
+      const changed = keys.some((key) => JSON.stringify(next[key]) !== JSON.stringify(body[key]));
+      entry.contract = { ...next, ...Object.fromEntries(keys.map((key) => [key, body[key]])), updated_at: changed ? stamp : next.updated_at };
+      return envelope(entry.contract);
+    }
+    if (current === null) return apiError(404, 'No contract terms');
+    if (action === 'terminate') {
+      entry.contract = { ...current, status: 'terminated', updated_at: stamp };
+      return envelope(entry.contract);
+    }
+    if (current.status === 'terminated' || !current.end_date || (body.term !== undefined && body.term !== current.term)) {
+      return apiError(400, 'Contract cannot be renewed from that term');
+    }
+    let endDate = body.end_date;
+    if (!endDate) {
+      if (body.term === undefined) return apiError(400, 'Current term is required');
+      const end = new Date(`${current.end_date}T00:00:00.000Z`);
+      const months = current.renewal_term_months ?? 12;
+      if (!Number.isFinite(end.getTime()) || !Number.isInteger(months) || months < 1) return apiError(400, 'Invalid renewal term');
+      do {
+        const day = end.getUTCDate();
+        end.setUTCDate(1);
+        end.setUTCMonth(end.getUTCMonth() + months);
+        const lastDay = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() + 1, 0)).getUTCDate();
+        end.setUTCDate(Math.min(day, lastDay));
+      } while (end.getTime() <= now());
+      endDate = end.toISOString().slice(0, 10);
+    }
+    if (typeof endDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate <= current.end_date) {
+      return apiError(400, 'The end date must advance');
+    }
+    entry.contract = {
+      ...current, status: 'active', end_date: endDate, term: current.term + 1,
+      ...('value' in body ? { value: body.value } : {}), updated_at: stamp,
+    };
+    return envelope(entry.contract);
+  };
+
   // Delivers one event to every active endpoint of the workspace subscribed to it, signed when the endpoint is.
   // `tamper` signs with another key, to check that the receiver refuses it.
   const deliver = async ({ event, documentId, accountId = options.accountId, tamper = false }) => {
@@ -459,7 +531,8 @@ export const createSimulator = (options) => {
 
     if (!authorization.startsWith('Bearer ')) {
       if (options.apiKey && apiKey !== undefined && sameSecret(apiKey, options.apiKey)) {
-        return WEBHOOK_PATH.test(apiPath) ? webhookEndpoints(req, apiPath) : forward(req, apiPath, url.search);
+        if (WEBHOOK_PATH.test(apiPath)) return webhookEndpoints(req, apiPath);
+        return CONTRACT_PATH.test(apiPath) ? contracts(req, apiPath) : forward(req, apiPath, url.search);
       }
 
       return invalidToken();
@@ -485,6 +558,7 @@ export const createSimulator = (options) => {
       });
     }
     if (WEBHOOK_PATH.test(apiPath)) return webhookEndpoints(req, apiPath);
+    if (CONTRACT_PATH.test(apiPath)) return contracts(req, apiPath);
     const reply = await forward(req, apiPath, url.search);
 
     return req.method === 'GET' && apiPath === '/accounts' ? filterAccounts(reply, grant.accountId) : reply;
@@ -539,6 +613,15 @@ export const createSimulator = (options) => {
       });
     }
     if (route === 'POST /__sim/webhooks/deliver') return json(200, { results: await deliver(body) });
+    if (route === 'POST /__sim/contracts/seed') {
+      const { documentId, contract, accountId = options.accountId } = body;
+      if (typeof documentId !== 'string' || !documentId || typeof accountId !== 'string' || !accountId ||
+        (contract !== null && (typeof contract !== 'object' || Array.isArray(contract) || contract.document_id !== documentId))) {
+        return json(400, { ok: false });
+      }
+      state.contracts.set(documentId, { accountId, contract });
+      return json(200, { ok: true });
+    }
     if (route === 'POST /__sim/faults') {
       const rules = Array.isArray(body.rules) ? body.rules : [];
       for (const rule of rules) {
