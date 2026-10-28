@@ -5,6 +5,12 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-10-28
+
+### Corrigido
+
+- Verificação de tipos em instalações novas, antes da geração do cliente do Twenty.
+
 ## [1.4.0] - 2026-10-28
 
 ### Adicionado
@@ -138,6 +144,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.4.1]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.4.1
 [1.4.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.4.0
 [1.3.1]: https://github.com/assinafy/twenty-crm-app/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.3.0

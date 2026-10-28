@@ -122,9 +122,10 @@ const rejectionStatus = async (operation: () => Promise<unknown>): Promise<numbe
 // Seed a completed local signature fixture without requesting a production signature.
 const seedLocalRecord = async () => {
   const timestamp = new Date().toISOString();
-  const { createAssinafyDocument: created } = await safely('Create named local fixture', () => coreClient(USER_TOKEN).mutation({
-    createAssinafyDocument: { __args: { data: { name } }, id: true },
-  }));
+  const { createAssinafyDocument: created } = await safely<{ createAssinafyDocument?: { id: string } | null }>(
+    'Create named local fixture',
+    () => coreClient(USER_TOKEN).mutation({ createAssinafyDocument: { __args: { data: { name } }, id: true } }),
+  );
   documentRecordId = created?.id ?? '';
   const table = await safely('Locate test object', findAssinafyDocumentTable);
   if (!/^[a-f0-9-]{36}$/.test(documentRecordId)) {
