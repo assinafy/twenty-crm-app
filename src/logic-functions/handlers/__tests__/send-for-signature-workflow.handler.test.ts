@@ -91,6 +91,7 @@ const template: TemplateSummary = {
     { id: 'r-2', name: 'Witness' },
   ],
   editorFields: [],
+  supportsDigitalCertificate: true,
   unsupportedReason: null,
 };
 const pdfPayload = {

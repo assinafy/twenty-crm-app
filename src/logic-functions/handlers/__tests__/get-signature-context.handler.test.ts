@@ -73,6 +73,7 @@ const template: TemplateSummary = {
   documentName: null,
   signerRoles: [{ id: 'r-1', name: 'Client' }],
   editorFields: [],
+  supportsDigitalCertificate: true,
   unsupportedReason: null,
 };
 const opportunity: CrmRecord = {

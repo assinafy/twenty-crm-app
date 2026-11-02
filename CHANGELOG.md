@@ -5,6 +5,18 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-11-02
+
+### Adicionado
+
+- Certificado digital ICP-Brasil em modelos sem campos posicionados para os signatários, com estimativa de custo,
+  CPF/CNPJ do titular, convite por e-mail ou WhatsApp e uma etapa por signatário. Modelos com campos de signatário
+  continuam sendo recusados antes da estimativa e do envio.
+
+### Alterado
+
+- Atualização do `@assinafy/sdk` para 2.11.0.
+
 ## [1.4.1] - 2026-10-28
 
 ### Corrigido

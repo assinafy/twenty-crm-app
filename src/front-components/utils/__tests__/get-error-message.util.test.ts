@@ -111,6 +111,9 @@ describe('getErrorMessage', () => {
     expect(input({ field: 'source.editorFields.value', reason: 'required', index: 0 }).message.message).toMatch(
       /Preencha todos os campos/,
     );
+    expect(input({ field: 'signers.verificationMethod', reason: 'template_fields' }).message.message).toMatch(
+      /modelos sem campos posicionados/,
+    );
   });
 
   it('shows the server NOT_CONNECTED text word for word', () => {

@@ -24,7 +24,12 @@ export const summarizeTemplate = (raw: ITemplateListItem): TemplateSummary | nul
   }
 
   const editorFields = new Map<string, string>();
+  const signerRoleIds = new Set(signerRoles.map(({ id }) => id));
+  let hasSignerFields = false;
   for (const field of (raw.pages ?? []).flatMap((page) => page.fields ?? [])) {
+    if (field.role_id && signerRoleIds.has(field.role_id)) {
+      hasSignerFields = true;
+    }
     if (field.field_id && field.role_id && editorRoleIds.has(field.role_id) && !editorFields.has(field.field_id)) {
       editorFields.set(field.field_id, field.label || field.field_id);
     }
@@ -43,6 +48,7 @@ export const summarizeTemplate = (raw: ITemplateListItem): TemplateSummary | nul
     documentName: raw.document_name ?? null,
     signerRoles,
     editorFields: [...editorFields].map(([fieldId, label]) => ({ fieldId, label })),
+    supportsDigitalCertificate: raw.pages !== undefined && !hasSignerFields,
     unsupportedReason,
   };
 };

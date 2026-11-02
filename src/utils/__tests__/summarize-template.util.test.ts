@@ -59,8 +59,19 @@ describe('summarizeTemplate', () => {
         { fieldId: 'field-price', label: 'Price' },
         { fieldId: 'field-date', label: 'field-date' },
       ],
+      supportsDigitalCertificate: false,
       unsupportedReason: null,
     });
+  });
+
+  it('allows certificate signing when the template has no fields assigned to signer roles', () => {
+    const result = summarizeTemplate(
+      template({
+        pages: [{ id: 'page-1', number: 1, height: 1651, width: 1275, fields: [] }],
+      }),
+    );
+
+    expect(result?.supportsDigitalCertificate).toBe(true);
   });
 
   it('accepts a lowercase ready status', () => {
@@ -129,6 +140,7 @@ describe('summarizeTemplate', () => {
       documentName: null,
       signerRoles: [],
       editorFields: [],
+      supportsDigitalCertificate: false,
       unsupportedReason: 'UNSUPPORTED_ROLES',
     });
   });

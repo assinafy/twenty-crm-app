@@ -105,6 +105,7 @@ describe('sendFlowReducer — draft edits', () => {
       documentName: null,
       signerRoles: [{ id: 'role-tenant', name: 'Tenant' }],
       editorFields: [],
+      supportsDigitalCertificate: true,
       unsupportedReason: null,
     };
     const twoTemplates = { ...CONTEXT, templates: [CONTEXT.templates[0]!, lease] };

@@ -46,7 +46,7 @@ describe('createAssinafyClientFactory', () => {
     expect(sent.map(({ method, url, params }) => ({ method, url, params }))).toEqual([
       { method: 'get', url: '/documents/doc-1', params: { expand: 'assignment' } },
       { method: 'get', url: '/documents/statuses', params: undefined },
-      { method: 'get', url: '/documents/doc-1/activities', params: undefined },
+      { method: 'get', url: '/documents/doc-1/activities', params: {} },
       { method: 'delete', url: '/documents/doc-1', params: undefined },
     ]);
   });

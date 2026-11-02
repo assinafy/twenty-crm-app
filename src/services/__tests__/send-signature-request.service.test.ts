@@ -628,6 +628,31 @@ describe('sendSignatureRequest — template billable call', () => {
     expect(fake.documents.createFromTemplate.mock.lastCall?.[2]).toEqual({ name: 'Service agreement' });
   });
 
+  it('sends a certificate signer through a virtual template', async () => {
+    const { fake, ctx } = setup();
+    const signer = buildSignerInput({
+      roleId: 'role-client',
+      verificationMethod: 'DigitalCertificate',
+      governmentId: '52998224725',
+    });
+
+    await sendSignatureRequest(ctx, templateSend({ signers: [signer] }));
+
+    expect(fake.documents.createFromTemplate).toHaveBeenCalledWith(
+      'template-1',
+      [
+        {
+          role_id: 'role-client',
+          id: 'signer-1',
+          verification_method: 'DigitalCertificate',
+          notification_methods: ['Email'],
+          step: 1,
+        },
+      ],
+      expect.objectContaining({ name: 'Service agreement' }),
+    );
+  });
+
   it('records a created document whose response has no assignment yet', async () => {
     const { fake, ctx } = setup();
     fake.documents.createFromTemplate.mockResolvedValue(documentDetails({ id: 'doc-template', assignment: null }));

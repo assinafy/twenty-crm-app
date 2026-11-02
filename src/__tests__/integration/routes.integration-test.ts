@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { createCrmFixtures, type CrmFixtures } from 'src/__tests__/integration/crm-fixtures';
+import { notWritableErrorPattern } from 'src/__tests__/integration/not-writable-error-pattern';
 import {
   callRoute,
   clearAssinafyCredential,
@@ -270,7 +271,7 @@ describe('file storage contract', () => {
       coreClient(USER_TOKEN).mutation({
         updateAssinafyDocument: { __args: { id, data: { signedDocument: [stored] } }, id: true },
       }),
-    ).rejects.toThrow(/field "signedDocument" on "assinafyDocument" is not writable through the API/);
+    ).rejects.toThrow(notWritableErrorPattern('signedDocument'));
   });
 });
 

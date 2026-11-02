@@ -111,6 +111,33 @@ describe('findDraftError', () => {
     ).toEqual(expect.objectContaining({ details: { field: 'signers.governmentId', reason: 'format', index: 0 } }));
   });
 
+  it('refuses a certificate on a template with signer fields', () => {
+    const [template] = CONTEXT.templates;
+    const draft = templateDraft({
+      signers: [
+        {
+          ...ana,
+          roleId: 'role-client',
+          verificationMethod: 'DigitalCertificate',
+          governmentId: '52998224725',
+        },
+        { ...ana, email: 'bruno@example.invalid', roleId: 'role-witness' },
+      ],
+    });
+
+    expect(
+      findDraftError(
+        { draft, context: { ...CONTEXT, templates: [{ ...template!, supportsDigitalCertificate: false }] } },
+        'SIGNERS',
+        now,
+      ),
+    ).toEqual(
+      expect.objectContaining({
+        details: { field: 'signers.verificationMethod', reason: 'template_fields' },
+      }),
+    );
+  });
+
   it('rethrows unexpected errors', () => {
     const draft = pdfDraft();
     Object.defineProperty(draft, 'signers', {

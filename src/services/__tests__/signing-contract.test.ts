@@ -1,4 +1,4 @@
-import { DIGITAL_CERTIFICATE_REQUIRES_VIRTUAL_METHOD, ValidationError } from '@assinafy/sdk';
+import { DIGITAL_CERTIFICATE_REQUIRES_VIRTUAL_METHOD } from '@assinafy/sdk';
 import { describe, expect, it } from 'vitest';
 
 import { LEAK_SENTINELS } from 'src/__tests__/setup/unit-test-setup';
@@ -52,31 +52,22 @@ describe.each(CREDENTIALS)('signing contract with $kind', (credential) => {
 
     await client.assignments.estimateCost('document-1', { method: 'virtual', signers: [channel] });
     await client.assignments.create('document-1', { method: 'virtual', signers: buildAssignmentSigners(upserted, false) });
-    const templateResults = [
-      await client.documents.estimateCostFromTemplate('template-1', [{ ...channel, role_id: 'role-1' }])
-        .then(() => null, (error: unknown) => error),
-      await client.documents.createFromTemplate('template-1', buildTemplateSigners(upserted, false), { name: 'Contrato' })
-        .then(() => null, (error: unknown) => error),
-    ];
-    expect(templateResults.map((error) => error instanceof ValidationError ? error.errors.code : error)).toEqual(
-      verificationMethod === 'DigitalCertificate'
-        ? [DIGITAL_CERTIFICATE_REQUIRES_VIRTUAL_METHOD, DIGITAL_CERTIFICATE_REQUIRES_VIRTUAL_METHOD]
-        : [null, null],
-    );
+    await client.documents.estimateCostFromTemplate('template-1', [{ ...channel, role_id: 'role-1' }]);
+    await client.documents.createFromTemplate('template-1', buildTemplateSigners(upserted, false), { name: 'Contrato' });
 
     const channelPayload = { verification_method: verificationMethod, notification_methods: [notificationMethod] };
     expect(requests.filter(({ url }) => url.endsWith('/estimate-cost')).map(({ body }) => body.signers)).toEqual([
-      [channelPayload], ...(verificationMethod === 'DigitalCertificate' ? [] : [[{ role_id: 'role-1', ...channelPayload }]]),
+      [channelPayload],
+      [{ role_id: 'role-1', ...channelPayload }],
     ]);
     const ordered = verificationMethod === 'DigitalCertificate' ? { step: 1 } : {};
     expect(requests.find(({ url }) => url === '/documents/document-1/assignments')?.body).toEqual({
       method: 'virtual', signers: [{ id: 'signer-1', ...channelPayload, ...ordered }],
     });
-    expect(requests.find(({ url }) => url === '/accounts/account-1/templates/template-1/documents')?.body).toEqual(
-      verificationMethod === 'DigitalCertificate'
-        ? undefined
-        : { name: 'Contrato', signers: [{ role_id: 'role-1', id: 'signer-1', ...channelPayload, ...ordered }] },
-    );
+    expect(requests.find(({ url }) => url === '/accounts/account-1/templates/template-1/documents')?.body).toEqual({
+      name: 'Contrato',
+      signers: [{ role_id: 'role-1', id: 'signer-1', ...channelPayload, ...ordered }],
+    });
     const update = requests.find(({ method, url }) => method === 'put' && url.endsWith('/signers/signer-1'));
     expect(update?.body ?? null).toEqual(signers[0]?.governmentId ? { government_id: '52998224725' } : null);
   });

@@ -10,6 +10,7 @@ import { type SendFlowState } from 'src/types/send-flow-state';
 import { type SignatureRequestInput } from 'src/types/signature-request-input';
 import { type TemplateSummary } from 'src/types/template-summary';
 import { AppFailure } from 'src/utils/app-failure.util';
+import { assertTemplateSigningMethods } from 'src/utils/assert-template-signing-methods.util';
 import { assertTemplateSupported } from 'src/utils/assert-template-supported.util';
 import { invalidInput } from 'src/utils/invalid-input.util';
 import { readString } from 'src/utils/read-string.util';
@@ -53,7 +54,10 @@ export const findDraftError = (
     if (step === 'DOCUMENT') {
       checkDocument(input, state.context.templates, now);
     } else {
-      validateSigners(input.signers, { source: input.source.type });
+      const signers = validateSigners(input.signers, { source: input.source.type });
+      const templateId = input.source.type === 'TEMPLATE' ? input.source.templateId : null;
+      const template = state.context.templates.find(({ id }) => id === templateId);
+      if (template) assertTemplateSigningMethods(template, signers);
     }
 
     return null;

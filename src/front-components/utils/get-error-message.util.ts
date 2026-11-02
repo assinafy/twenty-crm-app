@@ -101,6 +101,9 @@ const INPUT_MESSAGES: Record<string, MessageDescriptor> = {
     'Signatário {number}: informe o CPF para biometria ou o CPF/CNPJ do titular do certificado.',
   ),
   'signers.governmentId:cpf': msg('Signatário {number}: informe um CPF válido para a biometria.'),
+  'signers.verificationMethod:template_fields': msg(
+    'O certificado digital só pode ser usado em modelos sem campos posicionados para os signatários.',
+  ),
   'signers.roleId:mismatch': TEMPLATE_CHANGED,
   'signers.roleId': msg('Cada papel do modelo precisa de um signatário diferente.'),
   'attachmentId:not_found': msg(

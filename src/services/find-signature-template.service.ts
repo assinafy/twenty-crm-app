@@ -4,6 +4,7 @@ import { listTemplateSummaries } from 'src/services/list-template-summaries.serv
 import { type SignatureSource } from 'src/types/signature-source';
 import { type SignerInput } from 'src/types/signer-input';
 import { type TemplateSummary } from 'src/types/template-summary';
+import { assertTemplateSigningMethods } from 'src/utils/assert-template-signing-methods.util';
 import { assertTemplateSupported } from 'src/utils/assert-template-supported.util';
 import { invalidInput } from 'src/utils/invalid-input.util';
 
@@ -20,6 +21,7 @@ export const findSignatureTemplate = async (
     throw invalidInput('source.templateId', 'not_found');
   }
   assertTemplateSupported(template, 'source.templateId');
+  assertTemplateSigningMethods(template, signers);
 
   const roleIds = new Set(signers.map((signer) => signer.roleId));
   if (

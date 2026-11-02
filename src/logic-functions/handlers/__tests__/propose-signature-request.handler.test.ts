@@ -26,6 +26,7 @@ const context: SignatureContext = {
       documentName: null,
       signerRoles: [{ id: 'r-1', name: 'Client' }],
       editorFields: [],
+      supportsDigitalCertificate: true,
       unsupportedReason: null,
     },
     {
@@ -34,6 +35,7 @@ const context: SignatureContext = {
       documentName: null,
       signerRoles: [],
       editorFields: [],
+      supportsDigitalCertificate: true,
       unsupportedReason: 'UNSUPPORTED_ROLES',
     },
     {
@@ -42,6 +44,7 @@ const context: SignatureContext = {
       documentName: null,
       signerRoles: [{ id: 'r-1', name: 'Client' }],
       editorFields: [],
+      supportsDigitalCertificate: true,
       unsupportedReason: 'TOO_LARGE',
     },
   ],

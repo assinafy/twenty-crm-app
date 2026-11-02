@@ -24,6 +24,7 @@ export const CONTEXT: SignatureContext = {
         { id: 'role-witness', name: 'Witness' },
       ],
       editorFields: [{ fieldId: 'field-price', label: 'Price' }],
+      supportsDigitalCertificate: true,
       unsupportedReason: null,
     },
     {
@@ -32,6 +33,7 @@ export const CONTEXT: SignatureContext = {
       documentName: null,
       signerRoles: [{ id: 'role-signer', name: 'Signer' }],
       editorFields: [],
+      supportsDigitalCertificate: true,
       unsupportedReason: 'UNSUPPORTED_ROLES',
     },
   ],

@@ -1,5 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { notWritableErrorPattern } from 'src/__tests__/integration/not-writable-error-pattern';
+import { postGraphql } from 'src/__tests__/integration/post-graphql';
 import {
   API_KEY,
   coreClient,
@@ -19,9 +21,6 @@ import {
   PERSON_ASSINAFY_DOCUMENTS_FIELD_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
 import { type RecordConnection } from 'src/types/record-connection';
-import { postGraphql } from 'src/__tests__/integration/post-graphql';
-
-const NOT_WRITABLE = (field: string) => new RegExp(`field "${field}" on "assinafyDocument" is not writable through the API`);
 
 const appOnly = (type: string) => ({ type, writability: 'APPLICATION' });
 const relationTo = (target: string, reverseFieldUniversalIdentifier: string) => ({
@@ -144,12 +143,12 @@ describe.each([
       core.mutation({
         createAssinafyDocument: { __args: { data: { name: 'Forged', status: DOCUMENT_STATUS.CERTIFICATED } }, id: true },
       }),
-    ).rejects.toThrow(NOT_WRITABLE('status'));
+    ).rejects.toThrow(notWritableErrorPattern('status'));
     await expect(
       core.mutation({
         createAssinafyDocument: { __args: { data: { name: 'Forged', requestId: 'forged-request' } }, id: true },
       }),
-    ).rejects.toThrow(NOT_WRITABLE('requestId'));
+    ).rejects.toThrow(notWritableErrorPattern('requestId'));
   });
 
   // The object stays OPEN so roles may delete records; only the Twenty UI hides creation (isUICreatable false).
@@ -170,17 +169,17 @@ describe.each([
       core.mutation({
         updateAssinafyDocument: { __args: { id: created.id, data: { status: DOCUMENT_STATUS.CERTIFICATED } }, id: true },
       }),
-    ).rejects.toThrow(NOT_WRITABLE('status'));
+    ).rejects.toThrow(notWritableErrorPattern('status'));
     await expect(
       core.mutation({
         updateAssinafyDocument: { __args: { id: created.id, data: { signedCount: 1, lastError: null } }, id: true },
       }),
-    ).rejects.toThrow(/is not writable through the API/);
+    ).rejects.toThrow(notWritableErrorPattern());
     await expect(
       core.mutation({
         updateAssinafyDocument: { __args: { id: created.id, data: { personId: crypto.randomUUID() } }, id: true },
       }),
-    ).rejects.toThrow(NOT_WRITABLE('person'));
+    ).rejects.toThrow(notWritableErrorPattern('person'));
   });
 
   it.each([
@@ -190,11 +189,11 @@ describe.each([
   ] as const)('cannot forge %s on creation or update', async (field, data) => {
     await expect(core.mutation({
       createAssinafyDocument: { __args: { data: { name: 'Forged contract', ...data } }, id: true },
-    })).rejects.toThrow(NOT_WRITABLE(field));
+    })).rejects.toThrow(notWritableErrorPattern(field));
     const created = await createNameOnly();
     await expect(core.mutation({
       updateAssinafyDocument: { __args: { id: created.id, data }, id: true },
-    })).rejects.toThrow(NOT_WRITABLE(field));
+    })).rejects.toThrow(notWritableErrorPattern(field));
   });
 
   it('may delete a record', async () => {

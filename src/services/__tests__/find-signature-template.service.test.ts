@@ -37,6 +37,7 @@ describe('findSignatureTemplate', () => {
       name: 'Sales contract',
       signerRoles: [{ id: 'role-client', name: 'Client' }],
       editorFields: [{ fieldId: 'field-price', label: 'Price' }],
+      supportsDigitalCertificate: true,
     });
     expect(list).toHaveBeenCalledExactlyOnceWith({ page: 1, per_page: 50 });
   });
@@ -84,6 +85,30 @@ describe('findSignatureTemplate', () => {
     const { result } = await find([[templateItem({ roles })]]);
 
     await expect(result).rejects.toMatchObject({ details: { field: 'source.templateId', reason: 'too_large' } });
+  });
+
+  it('rejects certificate signing when the template has fields assigned to a signer role', async () => {
+    const item = templateItem({
+      pages: [
+        {
+          id: 'page-1',
+          number: 1,
+          height: 1651,
+          width: 1275,
+          fields: [{ field_id: 'field-signature', role_id: 'role-client' }],
+        },
+      ],
+    });
+    const certificate = buildSignerInput({
+      roleId: 'role-client',
+      verificationMethod: 'DigitalCertificate',
+      governmentId: '52998224725',
+    });
+    const { result } = await find([[item]], source({ editorFields: [] }), [certificate]);
+
+    await expect(result).rejects.toMatchObject({
+      details: { field: 'signers.verificationMethod', reason: 'template_fields' },
+    });
   });
 
   it.each([
