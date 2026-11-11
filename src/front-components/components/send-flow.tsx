@@ -63,8 +63,7 @@ const SendFlowSteps = ({
     latest.current = state;
   }, [state]);
 
-  // Best effort: an upload no send was attempted with is deleted when the flow closes; the background purge covers
-  // what this misses.
+  // Best effort: closing the flow discards an unused upload; it remains pending for cleanup after the 24 h TTL.
   useEffect(
     () => () => {
       const { upload } = latest.current;

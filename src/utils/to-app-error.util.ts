@@ -30,11 +30,11 @@ const fromApiError = (error: ApiError, operation: AssinafyOperation): AppFailure
   if (status === 401) {
     return new AppFailure('RECONNECT_REQUIRED', 'A Assinafy recusou as credenciais. Reconecte a Assinafy ou atualize a chave de API.');
   }
-  if (status === 403 && error.challenge?.error === 'insufficient_scope') {
+  if (status === 403 && (error.challenge?.error === 'insufficient_scope' || error.code === 'InsufficientScope')) {
     return new AppFailure(
       'INSUFFICIENT_SCOPE',
       'Falta uma permissão na conexão com a Assinafy. Reconecte a Assinafy.',
-      { scope: error.challenge.scope ?? null },
+      { scope: error.challenge?.scope ?? null },
     );
   }
   if (status === 403) {
@@ -45,6 +45,9 @@ const fromApiError = (error: ApiError, operation: AssinafyOperation): AppFailure
   }
   if (status === 429) {
     return new AppFailure('RATE_LIMITED', 'A Assinafy está recebendo muitas solicitações. Aguarde um momento e tente novamente.');
+  }
+  if (status === 409 && error.code === 'CreditCeilingExceeded') {
+    return new AppFailure('COST_CHANGED', 'O custo na Assinafy mudou. Revise-o novamente.');
   }
   if (status === 408 || status >= 500 || (status === 409 && operation === 'billable')) {
     return unavailable(operation);

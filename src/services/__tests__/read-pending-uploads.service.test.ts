@@ -31,6 +31,8 @@ describe('readPendingUploads', () => {
       { documentId: 'doc-4', createdAt: '2026-09-25T12:00:00.000Z' },
       { documentId: 'doc-5', accountId: 42, createdAt: '2026-09-25T12:00:00.000Z' },
       { documentId: 6, accountId: 'account-1', createdAt: '2026-09-25T12:00:00.000Z' },
+      { ...entry, createdAt: '' },
+      { ...entry, createdAt: 'invalid-date' },
     ]);
 
     await expect(readPendingUploads()).resolves.toEqual([entry]);

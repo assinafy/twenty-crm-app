@@ -30,11 +30,11 @@ const CREDENTIALS: AssinafyCredential[] = [
 describe.each(CREDENTIALS)('signing contract with $kind', (credential) => {
   it.each(PAIRINGS)('%s verification with %s notification follows the PDF and template contract', async (verificationMethod, notificationMethod) => {
     const client = createAssinafyClientFactory('https://api.test.invalid/v1')(credential, { accountId: 'account-1' });
-    const requests: Array<{ method: string; url: string; body: Record<string, unknown> }> = [];
+    const requests: Array<{ method: string; url: string; body: Record<string, unknown>; idempotencyKey: unknown }> = [];
     client.getAxiosInstance().defaults.adapter = async (config) => {
       const body = typeof config.data === 'string' ? JSON.parse(config.data) as Record<string, unknown> : {};
       const url = config.url ?? '';
-      requests.push({ method: config.method ?? '', url, body });
+      requests.push({ method: config.method ?? '', url, body, idempotencyKey: config.headers.get('Idempotency-Key') });
       const data = url.endsWith('/estimate-cost') ? costEstimate()
         : url.endsWith('/assignments') ? { id: 'assignment-1', signers: [] }
         : url.endsWith('/documents') ? { id: 'document-2' }
@@ -51,9 +51,9 @@ describe.each(CREDENTIALS)('signing contract with $kind', (credential) => {
     const { role_id: _role, ...channel } = descriptor!;
 
     await client.assignments.estimateCost('document-1', { method: 'virtual', signers: [channel] });
-    await client.assignments.create('document-1', { method: 'virtual', signers: buildAssignmentSigners(upserted, false) });
+    await client.assignments.create('document-1', { method: 'virtual', signers: buildAssignmentSigners(upserted, false), max_total_credits: 1.35 });
     await client.documents.estimateCostFromTemplate('template-1', [{ ...channel, role_id: 'role-1' }]);
-    await client.documents.createFromTemplate('template-1', buildTemplateSigners(upserted, false), { name: 'Contrato' });
+    await client.documents.createFromTemplate('template-1', buildTemplateSigners(upserted, false), { name: 'Contrato', max_total_credits: 1.35, idempotencyKey: 'request-1' });
 
     const channelPayload = { verification_method: verificationMethod, notification_methods: [notificationMethod] };
     expect(requests.filter(({ url }) => url.endsWith('/estimate-cost')).map(({ body }) => body.signers)).toEqual([
@@ -62,12 +62,14 @@ describe.each(CREDENTIALS)('signing contract with $kind', (credential) => {
     ]);
     const ordered = verificationMethod === 'DigitalCertificate' ? { step: 1 } : {};
     expect(requests.find(({ url }) => url === '/documents/document-1/assignments')?.body).toEqual({
-      method: 'virtual', signers: [{ id: 'signer-1', ...channelPayload, ...ordered }],
+      method: 'virtual', max_total_credits: 1.35, signers: [{ id: 'signer-1', ...channelPayload, ...ordered }],
     });
     expect(requests.find(({ url }) => url === '/accounts/account-1/templates/template-1/documents')?.body).toEqual({
       name: 'Contrato',
+      max_total_credits: 1.35,
       signers: [{ role_id: 'role-1', id: 'signer-1', ...channelPayload, ...ordered }],
     });
+    expect(requests.find(({ url }) => url.endsWith('/templates/template-1/documents'))?.idempotencyKey).toBe('request-1');
     const update = requests.find(({ method, url }) => method === 'put' && url.endsWith('/signers/signer-1'));
     expect(update?.body ?? null).toEqual(signers[0]?.governmentId ? { government_id: '52998224725' } : null);
   });

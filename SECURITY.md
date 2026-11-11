@@ -65,7 +65,9 @@ app) pela página de contato da Assinafy.
   de URLs `http(s)` que o Twenty devolve para os anexos do próprio registro, com tempo limite de 30 s e limite de 25 MB
   aplicado durante o download, e precisam ser PDFs.
 - **Operações cobradas:** a estimativa de custo é confirmada pelo membro (ou limitada pelo máximo de créditos do
-  fluxo de trabalho) e conferida novamente logo antes do envio, e uma operação cobrada nunca é repetida. Um ID de envio
+  fluxo de trabalho) e conferida novamente logo antes do envio. PDFs e modelos levam esse teto de créditos à Assinafy,
+  que recusa o envio sem cobrança se o custo ultrapassá-lo. Modelos também levam uma chave de idempotência; uma operação
+  cobrada nunca é repetida automaticamente. Um ID de envio
   único faz com que um envio repetido devolva o documento existente. Um fluxo de trabalho nunca começa a chamada cobrada
   sem tempo para concluí-la, e uma execução que encontra um envio igual e recente do mesmo documento para o mesmo
   registro não envia de novo.

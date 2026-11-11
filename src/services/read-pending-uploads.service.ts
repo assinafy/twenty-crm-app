@@ -10,7 +10,8 @@ const toPendingUpload = (value: unknown): PendingUpload[] => {
     entry === null ||
     typeof entry.documentId !== 'string' ||
     typeof entry.accountId !== 'string' ||
-    typeof entry.createdAt !== 'string'
+    typeof entry.createdAt !== 'string' ||
+    !Number.isFinite(Date.parse(entry.createdAt))
   ) {
     return [];
   }

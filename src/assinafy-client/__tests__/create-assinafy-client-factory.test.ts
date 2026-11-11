@@ -97,6 +97,16 @@ describe('createAssinafyClientFactory', () => {
     expect(singleSent).toHaveLength(1);
   });
 
+  it('does not retry a rate-limited template with an idempotency key when retries are disabled', async () => {
+    const client = create(apiKey, { accountId: 'acc-1', maxRetries: 0 });
+    const sent = record(client, 429);
+    await expect(client.documents.createFromTemplate('template-1', [{ role_id: 'role-1', id: 'signer-1' }], {
+      idempotencyKey: 'request-1', max_total_credits: 0,
+    })).rejects.toMatchObject({ statusCode: 429 });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.headers).toMatchObject({ 'Idempotency-Key': 'request-1' });
+  });
+
   it('leaves the default account unset unless one is passed', async () => {
     await expect(create(oauth).templates.list()).rejects.toThrow('Account ID is required');
   });

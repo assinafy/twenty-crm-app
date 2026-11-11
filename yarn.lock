@@ -15,12 +15,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@assinafy/sdk@npm:2.11.0":
-  version: 2.11.0
-  resolution: "@assinafy/sdk@npm:2.11.0"
+"@assinafy/sdk@npm:3.0.1":
+  version: 3.0.1
+  resolution: "@assinafy/sdk@npm:3.0.1"
   dependencies:
     axios: "npm:^1.21.0"
-  checksum: 10c0/740cdd31a8170d0d0da92fdd99a780f713db1601016e77edae020e7d5bb9d7fec0463ef14c0490359ebeec91fb8eee467a86955441e5b7332520d07b17326192
+  checksum: 10c0/5370b5a71a28f857ab83094af2d6d8047ca8719f9dba5c27b4f6dfaa1b8caeaddf5732657fb31b2a3fc5a5bc366a900d04211ecd451d94832289342ef1090ec1
   languageName: node
   linkType: hard
 
@@ -28,7 +28,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@assinafy/twenty-app@workspace:."
   dependencies:
-    "@assinafy/sdk": "npm:2.11.0"
+    "@assinafy/sdk": "npm:3.0.1"
     "@types/node": "npm:^24.13.6"
     "@types/react": "npm:^19.3.0"
     "@vitest/coverage-v8": "npm:^5.0.1"

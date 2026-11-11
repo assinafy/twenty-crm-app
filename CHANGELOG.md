@@ -5,6 +5,20 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-11-11
+
+### Corrigido
+
+- Envios de PDFs e modelos informam à Assinafy o teto de créditos confirmado. Se o custo superar esse limite,
+  o envio é recusado sem cobrança e o app solicita uma nova revisão do custo.
+- Envios de modelos usam uma chave de idempotência por solicitação, sem repetição automática da chamada cobrada.
+- Falhas de permissão OAuth são reconhecidas pelo código da API mesmo sem o cabeçalho de autenticação.
+- Uploads com data de criação inválida não podem ser reutilizados, enviados ou excluídos pela limpeza automática.
+
+### Alterado
+
+- Atualização do `@assinafy/sdk` para 3.0.1.
+
 ## [1.5.0] - 2026-11-02
 
 ### Adicionado

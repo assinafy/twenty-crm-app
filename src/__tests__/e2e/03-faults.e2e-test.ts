@@ -38,6 +38,26 @@ afterAll(async () => {
 });
 
 describe('Assinafy failures', () => {
+  it('a server credit-ceiling refusal leaves a failed attempt without retrying the billable request', async () => {
+    const request = pdfRequest(crm, 'Limite de créditos E2E');
+    const prepared = await prepare(token, request);
+    const path = `/v1/documents/${prepared.assinafyDocumentId}/assignments`;
+    await simulator.addFaults([{ method: 'POST', pathRegex: `^${path}$`, times: 1, phase: 'before',
+      action: { status: 409, body: { status: 409, code: 'CreditCeilingExceeded', message: 'Cost changed', data: null } } }]);
+    const mark = await simulator.mark();
+    const body = sendBody(request, prepared);
+    expect(await callRoute('/s/assinafy/send', token, body)).toMatchObject({ ok: false, error: { code: 'COST_CHANGED' } });
+    expect(await findDocumentRecords({ requestId: { eq: body.requestId } })).toEqual([
+      expect.objectContaining({ status: 'FAILED', lastError: 'COST_CHANGED', assinafyAssignmentId: null }),
+    ]);
+    expect((await simulator.logSince(mark)).filter((entry) => entry.path === path)).toEqual([
+      expect.objectContaining({ status: 409, fault: 'before:409' }),
+    ]);
+    const retried = await callRoute('/s/assinafy/send', token, body);
+    expect(retried).toMatchObject({ ok: true, status: 'FAILED', lastError: 'COST_CHANGED' });
+    expect((await simulator.logSince(mark)).filter((entry) => entry.path === path)).toHaveLength(1);
+  });
+
   it('an assignment accepted upstream but answered 500 leaves an UNCERTAIN record, never a second send', async () => {
     const request = pdfRequest(crm, 'Incerto E2E');
     const prepared = await prepare(token, request);

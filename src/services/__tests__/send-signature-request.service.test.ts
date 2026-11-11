@@ -64,6 +64,7 @@ const setup = () => {
   const fake = fakeAssinafyClient();
   const resolved = resolvedCredential(fake.client);
   const ctx = buildContext();
+  vi.mocked(ctx.createAssinafyClient).mockReturnValue(fake.client);
   vi.mocked(findCrmRecord).mockResolvedValue(crmRecord());
   findByRequestId.mockResolvedValue(null);
   findDocuments.mockResolvedValue([]);
@@ -323,6 +324,27 @@ describe('sendSignatureRequest — estimate comparison', () => {
 });
 
 describe('sendSignatureRequest — PDF billable call', () => {
+  it.each(['PDF', 'TEMPLATE'] as const)('passes the confirmed credit ceiling to the %s send', async (source) => {
+    const { fake, ctx } = setup();
+    fake.assignments.estimateCost.mockResolvedValue(costEstimate({ total_credits: 1.35 }));
+    fake.documents.estimateCostFromTemplate.mockResolvedValue(costEstimate({ total_credits: 1.35 }));
+    await sendSignatureRequest(ctx, source === 'PDF'
+      ? pdfSend({ expectedTotalCredits: 1.35 }) : templateSend({ expectedTotalCredits: 1.35 }));
+    expect(source === 'PDF' ? fake.assignments.create.mock.lastCall?.[1]
+      : fake.documents.createFromTemplate.mock.lastCall?.[2]).toMatchObject({ max_total_credits: 1.35 });
+  });
+
+  it.each(['PDF', 'TEMPLATE'] as const)('records a %s credit ceiling refusal as definitely unsent', async (source) => {
+    const { fake, ctx } = setup();
+    const error = ApiError.fromResponse(409, { status: 409, code: 'CreditCeilingExceeded' });
+    const send = source === 'PDF' ? fake.assignments.create : fake.documents.createFromTemplate;
+    send.mockRejectedValue(error);
+    await expect(sendSignatureRequest(ctx, source === 'PDF' ? pdfSend() : templateSend()))
+      .rejects.toMatchObject({ code: 'COST_CHANGED' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(lastPatch()).toMatchObject({ status: 'FAILED', lastError: 'COST_CHANGED' });
+  });
+
   it('requests the signatures once and records PENDING_SIGNATURE, sentAt and the assignment', async () => {
     const { fake, ctx } = setup();
 
@@ -333,6 +355,7 @@ describe('sendSignatureRequest — PDF billable call', () => {
 
     expect(fake.assignments.create).toHaveBeenCalledExactlyOnceWith('doc-1', {
       method: 'virtual',
+      max_total_credits: 0,
       signers: [{ id: 'signer-1', verification_method: 'Email', notification_methods: ['Email'] }],
       message: 'Please sign',
       expires_at: minutesFromNow(65),
@@ -368,6 +391,7 @@ describe('sendSignatureRequest — PDF billable call', () => {
 
     expect(fake.assignments.create).toHaveBeenCalledWith('doc-1', {
       method: 'virtual',
+      max_total_credits: 0,
       signers: [
         { id: 'signer-1', verification_method: 'Email', notification_methods: ['Email'], step: 1 },
         { id: 'signer-2', verification_method: 'Email', notification_methods: ['Email'], step: 2 },
@@ -601,6 +625,8 @@ describe('sendSignatureRequest — template billable call', () => {
       [{ role_id: 'role-client', id: 'signer-1', verification_method: 'Email', notification_methods: ['Email'] }],
       {
         name: 'Service agreement',
+        max_total_credits: 0,
+        idempotencyKey: REQUEST_ID,
         message: 'Hi',
         expires_at: minutesFromNow(90),
         editor_fields: [{ field_id: 'field-price', value: '100' }],
@@ -625,7 +651,8 @@ describe('sendSignatureRequest — template billable call', () => {
       templateSend({ source: { type: 'TEMPLATE', templateId: 'template-1', editorFields: [] } }),
     );
 
-    expect(fake.documents.createFromTemplate.mock.lastCall?.[2]).toEqual({ name: 'Service agreement' });
+    expect(fake.documents.createFromTemplate.mock.lastCall?.[2]).toEqual({ name: 'Service agreement', max_total_credits: 0, idempotencyKey: REQUEST_ID });
+    expect(ctx.createAssinafyClient).toHaveBeenCalledWith(expect.anything(), { accountId: 'account-1', maxRetries: 0 });
   });
 
   it('sends a certificate signer through a virtual template', async () => {

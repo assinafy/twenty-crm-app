@@ -58,6 +58,19 @@ describe('toAppError', () => {
     expect(toAppError(apiError(status), 'billable').code).toBe('UNCERTAIN');
   });
 
+  it('treats an explicit credit ceiling refusal as a changed cost, without exposing the body', () => {
+    const error = ApiError.fromResponse(409, {
+      status: 409, code: 'CreditCeilingExceeded', message: 'ana@example.invalid', total_credits: 2,
+    });
+    expect(toAppError(error, 'billable')).toMatchObject({ code: 'COST_CHANGED', details: undefined });
+  });
+
+  it('recognizes the structured insufficient-scope code without a challenge', () => {
+    expect(toAppError(ApiError.fromResponse(403, { code: 'InsufficientScope' }), 'read')).toMatchObject({
+      code: 'INSUFFICIENT_SCOPE', details: { scope: null },
+    });
+  });
+
   it.each(['read', 'mutation'] as const)('maps 408 and 5xx on a %s call to PROVIDER_UNAVAILABLE', (operation) => {
     expect(toAppError(apiError(408), operation).code).toBe('PROVIDER_UNAVAILABLE');
     expect(toAppError(apiError(500), operation).code).toBe('PROVIDER_UNAVAILABLE');

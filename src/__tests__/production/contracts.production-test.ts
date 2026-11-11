@@ -19,6 +19,7 @@ import { type ContractTerms } from 'src/types/contract-terms';
 import { errorName } from 'src/utils/error-name.util';
 import { isAssinafyId } from 'src/utils/is-assinafy-id.util';
 import { isUnsentDocument } from 'src/utils/is-unsent-document.util';
+import { normalizeCostEstimate } from 'src/utils/normalize-cost-estimate.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
 const PRODUCTION_BASE_URL = 'https://api.assinafy.com.br/v1';
@@ -49,7 +50,7 @@ let documentRecordId = '';
 let uploadAttempted = false;
 let current: RootContract;
 
-// Restrict the direct SDK client to this run's upload, metadata, cleanup and non-billable contract operations.
+// Restrict the direct SDK client to this run's upload, metadata, cleanup, estimates and non-billable contract operations.
 provider.getAxiosInstance().interceptors.request.use((request) => {
   const method = request.method?.toUpperCase();
   const path = request.url ?? '';
@@ -57,6 +58,7 @@ provider.getAxiosInstance().interceptors.request.use((request) => {
   const allowed = (documentId === null && method === 'POST' && path === `/accounts/${accountId}/documents`) ||
     (documentId !== null && (['GET', 'DELETE'].includes(method ?? '') && path === `/documents/${documentId}` ||
       ['GET', 'PUT'].includes(method ?? '') && path === contractPath ||
+      method === 'POST' && path === `/documents/${documentId}/assignments/estimate-cost` ||
       method === 'POST' && [`${contractPath}/renew`, `${contractPath}/terminate`].includes(path)));
   if (request.baseURL !== PRODUCTION_BASE_URL || !allowed) throw new Error('Unexpected production test operation');
   return request;
@@ -190,6 +192,22 @@ afterAll(async () => {
 });
 
 describe('installed app contract lifecycle against production without requesting signatures', () => {
+  it.each([
+    ['Email', 'Email'],
+    ['Whatsapp', 'Whatsapp'],
+    ['DigitalCertificate', 'Email'],
+    ['DigitalCertificate', 'Whatsapp'],
+    ['IdDocumentFaceMatchBasic', 'Email'],
+    ['IdDocumentFaceMatchBasic', 'Whatsapp'],
+  ] as const)('estimates %s verification with %s notification without creating signers', async (verificationMethod, notificationMethod) => {
+    const raw = await safely('Estimate signing cost', () => provider.assignments.estimateCost(requiredDocumentId(), {
+      method: 'virtual', signers: [{ verification_method: verificationMethod, notification_methods: [notificationMethod] }],
+    }));
+    const estimate = normalizeCostEstimate(raw);
+    expect(estimate.documents).toBe(1);
+    expect(estimate.totalCredits).toBeGreaterThanOrEqual(0);
+  });
+
   it('reads absence, creates terms and mirrors them on the local certified fixture', async () => {
     expect(await call({ action: 'get' })).toEqual({ ok: true, contract: null });
     current = await rootContract({ action: 'set', updatedAt: null, terms });

@@ -6,7 +6,7 @@ This reference covers every Assinafy SDK method called by the shipped Twenty app
 
 The application calls `https://api.assinafy.com.br/v1` over HTTPS. OAuth consent uses `https://auth.assinafy.com.br/oauth/authorize`. Only the live suite uses `https://sandbox.assinafy.com.br/v1`; the end-to-end harness rewrites a temporary app copy to its simulator.
 
-`AssinafyClient` receives either `apiKey` (sent as `X-Api-Key`) or `token` (sent as `Authorization: Bearer`). Never supply both. The resolved workspace ID is set as the client's `accountId`. The default timeout is 30 seconds and safe reads can retry twice. The installed `@assinafy/sdk` 2.11.0 does not replay billable assignment, template creation or resend calls. The app wraps those calls with `billable` to preserve uncertain outcomes.
+`AssinafyClient` receives either `apiKey` (sent as `X-Api-Key`) or `token` (sent as `Authorization: Bearer`). Never supply both. The resolved workspace ID is set as the client's `accountId`. The default timeout is 30 seconds and safe reads can retry twice. The app uses `@assinafy/sdk` 3.0.1 and configures billable assignment, template creation and resend calls without automatic replay. The app wraps those calls with `billable` to preserve uncertain outcomes. PDF and template sends include the confirmed `max_total_credits` ceiling, rounded to cents. Template sends set `Idempotency-Key` to the Twenty `requestId` with `maxRetries: 0`; a keyed request must not opt the app into the SDK's 429 retry behavior.
 
 Successful JSON HTTP responses use `{ "status": 200, "message": "", "data": ... }`. Single-resource SDK methods return `data` directly; list methods return `{ data, meta }`. `meta` comes from `X-Pagination-Current-Page`, `X-Pagination-Total-Count`, `X-Pagination-Page-Count` and `X-Pagination-Per-Page`. Downloads return bytes. OAuth responses have their own payloads.
 
@@ -26,12 +26,12 @@ The WhatsApp phone is omitted for email invitations. A certificate or biometric 
 {"government_id":"11144477735"}
 ```
 
-The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification sends `verification_method: "Email"` with `notification_methods: ["Email"]`; WhatsApp verification sends `"Whatsapp"` with `["Whatsapp"]`; certificate verification (`"DigitalCertificate"`, A1 or A3 certificate media chosen by the signer at signing time) takes either channel, chosen by the member. A certificate signer requires `method: "virtual"`: the certificate flow completes the signer's virtual item, while the ordinary signing endpoint refuses certificate signers and cannot submit placed `collect` fields. SDK 2.11.0 rejects a direct `collect` assignment before `assignments.estimateCost` or `assignments.create` makes a request, with `ValidationError.errors.code` set to `digital_certificate_requires_virtual_method`. For templates, the API derives the assignment method from its placed fields: certificate signers are accepted when no field belongs to a signer role and rejected for a `collect` template. The app reads those field placements and refuses the collect combination before the estimate. A CNPJ has 14 characters and may contain letters; the app sends it upper-cased without punctuation. Biometric verification (`IdDocumentFaceMatchBasic`) also accepts either notification channel, requires a checksum-valid CPF (CNPJ is rejected), and runs entirely in Assinafy with the signer’s consent. The app stores only the verification status, never photos, evidence or the government ID. An `InReview` result is approved or declined in Assinafy; `pending_identity_review` remains open and polled until that decision allows certification. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing.
+The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification sends `verification_method: "Email"` with `notification_methods: ["Email"]`; WhatsApp verification sends `"Whatsapp"` with `["Whatsapp"]`; certificate verification (`"DigitalCertificate"`, A1 or A3 certificate media chosen by the signer at signing time) takes either channel, chosen by the member. A certificate signer requires `method: "virtual"`: the certificate flow completes the signer's virtual item, while the ordinary signing endpoint refuses certificate signers and cannot submit placed `collect` fields. SDK 3.0.1 rejects a direct `collect` assignment before `assignments.estimateCost` or `assignments.create` makes a request, with `ValidationError.errors.code` set to `digital_certificate_requires_virtual_method`. For templates, the API derives the assignment method from its placed fields: certificate signers are accepted when no field belongs to a signer role and rejected for a `collect` template. The app reads those field placements and refuses the collect combination before the estimate. A CNPJ has 14 characters and may contain letters; the app sends it upper-cased without punctuation. Biometric verification (`IdDocumentFaceMatchBasic`) also accepts either notification channel, requires a checksum-valid CPF (CNPJ is rejected), and runs entirely in Assinafy with the signer’s consent. The app stores only the verification status, never photos, evidence or the government ID. An `InReview` result is approved or declined in Assinafy; `pending_identity_review` remains open and polled until that decision allows certification. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing.
 
 Biometric PDF send (the same signer options apply to template roles):
 
 ```json
-{"method":"virtual","signers":[{"id":"signer-example","verification_method":"IdDocumentFaceMatchBasic","notification_methods":["Whatsapp"]}]}
+{"method":"virtual","max_total_credits":1.35,"signers":[{"id":"signer-example","verification_method":"IdDocumentFaceMatchBasic","notification_methods":["Whatsapp"]}]}
 ```
 
 PDF estimate:
@@ -43,7 +43,7 @@ PDF estimate:
 PDF send:
 
 ```json
-{"method":"virtual","signers":[{"id":"signer-example","verification_method":"DigitalCertificate","notification_methods":["Email"],"step":1}],"message":"Revise e assine o documento.","expires_at":"2027-01-01T23:59:59Z"}
+{"method":"virtual","max_total_credits":1.35,"signers":[{"id":"signer-example","verification_method":"DigitalCertificate","notification_methods":["Email"],"step":1}],"message":"Revise e assine o documento.","expires_at":"2027-01-01T23:59:59Z"}
 ```
 
 Template estimate:
@@ -55,10 +55,10 @@ Template estimate:
 Template send:
 
 ```json
-{"signers":[{"role_id":"role-example","id":"signer-example","verification_method":"Email","notification_methods":["Email"]}],"name":"Contrato","message":"Revise e assine o documento.","expires_at":"2027-01-01T23:59:59Z","editor_fields":[{"field_id":"field-example","value":"Valor preenchido"}]}
+{"max_total_credits":1.35,"signers":[{"role_id":"role-example","id":"signer-example","verification_method":"Email","notification_methods":["Email"]}],"name":"Contrato","message":"Revise e assine o documento.","expires_at":"2027-01-01T23:59:59Z","editor_fields":[{"field_id":"field-example","value":"Valor preenchido"}]}
 ```
 
-Optional null values are omitted from provider payloads. Template role and field IDs come from the template; Assinafy IDs are strings and are not Twenty UUIDs.
+Send examples use a hypothetical confirmed ceiling of 1.35 credits; use the actual estimate. Template creation also sends `Idempotency-Key: <requestId>` as an HTTP header. Optional null values are omitted from provider payloads. Template role and field IDs come from the template; Assinafy IDs are strings and are not Twenty UUIDs.
 
 Cost response example:
 
@@ -349,6 +349,24 @@ Parameters:
 [
   {
     "$ref": "#/components/parameters/DocumentId"
+  },
+  {
+    "name": "expand",
+    "in": "query",
+    "description": "`envelope_id` adds the id of the envelope the document was sent in, `envelope` its id and name; each is `null` for a document sent on its own. Send both separated by a comma. Read by the workspace only; without it the document reads as it always has.",
+    "required": false,
+    "style": "form",
+    "explode": false,
+    "schema": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "envelope_id",
+          "envelope"
+        ]
+      }
+    }
   }
 ]
 ```
@@ -382,6 +400,18 @@ Responses:
   },
   "404": {
     "$ref": "#/components/responses/NotFound"
+  },
+  "403": {
+    "$ref": "#/components/responses/Forbidden",
+    "description": "With a user's token or key, a deactivated membership, a role or an OAuth scope refuses it."
+  },
+  "400": {
+    "$ref": "#/components/responses/SignerStepPending",
+    "description": "The signer's step has not started yet (sequential signing)."
+  },
+  "410": {
+    "$ref": "#/components/responses/SignerAccessClosed",
+    "description": "With a signer's access code: the code is closed."
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -440,6 +470,68 @@ Responses:
   "404": {
     "$ref": "#/components/responses/NotFound"
   },
+  "409": {
+    "description": "The document belongs to an envelope that is still open (`EnvelopeOpen`).",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 409
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "EnvelopeOpen"
+                  ]
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "400": {
+    "description": "The document is certificated, or still being uploaded or processed.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 400
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Cannot delete a document with status: 'uploaded'."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "403": {
+    "$ref": "#/components/responses/Forbidden",
+    "description": "With a user's token or key, a deactivated membership, a role or an OAuth scope refuses it."
+  },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
   },
@@ -496,8 +588,44 @@ Responses:
       }
     }
   },
+  "403": {
+    "description": "A signer access code asked for an artifact other than `original`; or, with a user's token or key, a deactivated membership, a role or an OAuth scope refuses it.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 403
+                },
+                "message": {
+                  "type": "string",
+                  "example": "The signed document is sent to the signer by e-mail or WhatsApp."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
   "404": {
     "$ref": "#/components/responses/NotFound"
+  },
+  "410": {
+    "$ref": "#/components/responses/SignerAccessClosed",
+    "description": "The signer access code is closed: the signer finished (for a document of an envelope, every document of it they are on) more than 30 minutes ago."
+  },
+  "400": {
+    "$ref": "#/components/responses/SignerStepPending",
+    "description": "The signer's step has not started yet (sequential signing)."
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -543,7 +671,7 @@ Request body:
           "email": {
             "type": "string",
             "format": "email",
-            "example": "signer@example.invalid"
+            "example": "john@example.invalid"
           },
           "whatsapp_phone_number": {
             "description": "E.164; normalized on save.",
@@ -711,13 +839,13 @@ Request body:
             "example": "John Dove"
           },
           "email": {
-            "description": "Can't be changed or cleared while the signer has verified it on an in-flight document (`400`).",
+            "description": "Can't be changed or cleared while the signer has verified it on an in-flight document, or on a document of an envelope while another of their documents of it is in flight (`400`).",
             "type": "string",
             "format": "email",
-            "example": "signer@example.invalid"
+            "example": "john@example.invalid"
           },
           "whatsapp_phone_number": {
-            "description": "E.164; normalized on save, and compared after normalizing, so the same number in another format is not a change. Can't be changed or cleared while the signer has verified it on an in-flight document (`400`).",
+            "description": "E.164; normalized on save, and compared after normalizing, so the same number in another format is not a change. Can't be changed or cleared while the signer has verified it on an in-flight document, or on a document of an envelope while another of their documents of it is in flight (`400`).",
             "type": "string",
             "example": "+5548999990000"
           },
@@ -762,10 +890,15 @@ Responses:
     }
   },
   "400": {
-    "$ref": "#/components/responses/ValidationError"
+    "$ref": "#/components/responses/BadRequest",
+    "description": "A field is invalid (with `errors`, e.g. `Full Name cannot be blank.`), or the change would replace an e-mail or WhatsApp number the signer has verified on an active document."
   },
   "404": {
     "$ref": "#/components/responses/NotFound"
+  },
+  "403": {
+    "$ref": "#/components/responses/Forbidden",
+    "description": "With a user's token or key, a deactivated membership, a role or an OAuth scope refuses it."
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -884,7 +1017,72 @@ Responses:
     }
   },
   "400": {
-    "$ref": "#/components/responses/ValidationError"
+    "$ref": "#/components/responses/BadRequest",
+    "description": "The body cannot make an assignment: the same checks of signers, methods and steps as creating it, and the document must be able to take one (e.g. `At least one signer is required.`)."
+  },
+  "403": {
+    "description": "The workspace's plan lacks a verification or notification method sent (`PlanRestricted`), or an OAuth app's token lacks `documents:write` (`InsufficientScope`); also a deactivated membership or a role.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 403
+                },
+                "message": {
+                  "type": "string",
+                  "example": "WhatsApp notification is not available for your current plan."
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "PlanRestricted",
+                    "InsufficientScope"
+                  ],
+                  "example": "PlanRestricted"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "404": {
+    "description": "The document is not in the workspace.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 404
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Document not found."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -969,6 +1167,11 @@ Request body:
                     "Email"
                   ]
                 },
+                "embedded": {
+                  "description": "Mark this signer as embedded: they sign inside an iframe in your application through a short-lived embed session, and your backend gets no signing link for them (`signing_urls` returns `url: null, embedded: true`). They still receive the normal invitation with their code, and can also sign from it. Requires the Embed plan feature (`403 PlanRestricted` otherwise) and works with Email or Whatsapp verification. Defaults to `false`.",
+                  "type": "boolean",
+                  "example": false
+                },
                 "step": {
                   "type": "integer",
                   "example": 1
@@ -1021,6 +1224,11 @@ Request body:
             "items": {
               "type": "string"
             }
+          },
+          "max_total_credits": {
+            "description": "Optional ceiling on what this request may spend: refused with `409` and code `CreditCeilingExceeded`, nothing charged, when its `total_credits` is above this. Send the `total_credits` of the last estimate. A value that is not a number of credits, zero or more, answers `400`; numeric text counts, as a form-encoded body sends it.",
+            "type": "number",
+            "example": 1.5
           }
         },
         "type": "object"
@@ -1080,7 +1288,75 @@ Responses:
     }
   },
   "400": {
-    "$ref": "#/components/responses/ValidationError"
+    "$ref": "#/components/responses/BadRequest",
+    "description": "The body cannot make an assignment: a signer, method, step, field or expiration is missing or invalid, the document is not ready or already has one, or the workspace lacks the documents or credits it needs (e.g. `At least one signer is required.`)."
+  },
+  "409": {
+    "$ref": "#/components/responses/CreditCeilingExceeded"
+  },
+  "403": {
+    "description": "The workspace's plan lacks a verification or notification method sent (`PlanRestricted`), or an OAuth app's token lacks `documents:write` (`InsufficientScope`); also a deactivated membership or a role.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 403
+                },
+                "message": {
+                  "type": "string",
+                  "example": "WhatsApp notification is not available for your current plan."
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "PlanRestricted",
+                    "InsufficientScope"
+                  ],
+                  "example": "PlanRestricted"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "404": {
+    "description": "The document is not in the workspace.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 404
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Document not found."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -1201,6 +1477,98 @@ Responses:
       }
     }
   },
+  "400": {
+    "description": "The roles, signers or methods sent cannot make a document (the same rules as creating it).",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 400
+                },
+                "message": {
+                  "type": "string",
+                  "example": "A signer using a digital certificate must be alone in its signing step."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "403": {
+    "description": "The workspace's plan lacks a verification or notification method sent (`PlanRestricted`), or an OAuth app's token lacks `documents:write` (`InsufficientScope`); also a deactivated membership or a role.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 403
+                },
+                "message": {
+                  "type": "string",
+                  "example": "WhatsApp notification is not available for your current plan."
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "PlanRestricted",
+                    "InsufficientScope"
+                  ],
+                  "example": "PlanRestricted"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "404": {
+    "description": "The template is not in the workspace, or the workspace does not exist.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 404
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Template not found."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
   },
@@ -1214,7 +1582,7 @@ Responses:
 
 `POST /v1/accounts/{accountId}/templates/{templateId}/documents`
 
-Billable. Returns the unwrapped document. Signers already exist in the account. The app supplies each signer role exactly once, every editor field, name, and optional message/expiration. A certificate signer reaches this call only for a template without signer fields. Never retried. The initial response may have no assignment yet; a subsequent document sync reads it without creating another document.
+Billable. Returns the unwrapped document. Signers already exist in the account. The app supplies each signer role exactly once, every editor field, name, optional message/expiration, and `max_total_credits`. The options carry `idempotencyKey: requestId`, serialized as the `Idempotency-Key` header, never a JSON field. A certificate signer reaches this call only for a template without signer fields. Never retried. The initial response may have no assignment yet; a subsequent document sync reads it without creating another document.
 
 Parameters:
 
@@ -1230,6 +1598,16 @@ Parameters:
     "required": true,
     "schema": {
       "type": "string"
+    }
+  },
+  {
+    "name": "Idempotency-Key",
+    "in": "header",
+    "description": "Any text, case-sensitive and new for each document you mean to create (a UUID, say). Retrying with the same key after a lost response answers the document the first request created, as the first response would, and creates and charges nothing, whatever the body says. A key belongs to its template and doesn't expire, so a `failed` document keeps answering it. `404` if that document was deleted; `409` with code `IdempotencyKeyInUse` if the first request is still running: try again. A request refused before its job is queued leaves its key free.",
+    "required": false,
+    "schema": {
+      "type": "string",
+      "example": "0f8fad5b-d9cb-469f-a165-70867728950e"
     }
   }
 ]
@@ -1301,6 +1679,11 @@ Request body:
                     "Email"
                   ]
                 },
+                "embedded": {
+                  "description": "Mark this signer as embedded: they sign inside an iframe in your application through a short-lived embed session, and your backend gets no signing link for them (`signing_urls` returns `url: null, embedded: true`). They still receive the normal invitation with their code, and can also sign from it. Requires the Embed plan feature (`403 PlanRestricted` otherwise) and works with Email or Whatsapp verification. Defaults to `false`.",
+                  "type": "boolean",
+                  "example": false
+                },
                 "step": {
                   "description": "Positive integer that controls signing order. Signers sharing the same step sign in parallel; a step activates only after every signer in the previous step has signed. If supplied for any role it must be supplied for all, forming a contiguous sequence starting at 1. Copy receivers ignore this field.",
                   "type": "integer",
@@ -1355,6 +1738,11 @@ Request body:
             "items": {
               "type": "string"
             }
+          },
+          "max_total_credits": {
+            "description": "Optional ceiling on what this request may spend: refused with `409` and code `CreditCeilingExceeded`, nothing charged, when its `total_credits` is above this. Send the `total_credits` of the last estimate. A value that is not a number of credits, zero or more, answers `400`; numeric text counts, as a form-encoded body sends it. If the cost rises after the request is accepted, as when the plan's documents run out, nothing is charged, the document ends `failed` and `document_processing_failed` carries the reason in `error_message`.",
+            "type": "number",
+            "example": 1.5
           }
         },
         "type": "object"
@@ -1392,7 +1780,88 @@ Responses:
     }
   },
   "400": {
-    "$ref": "#/components/responses/ValidationError"
+    "$ref": "#/components/responses/BadRequest",
+    "description": "The roles, signers, methods or editor fields sent cannot make a document, or the workspace lacks the documents or credits it needs (e.g. `Signer id or email is required.`). A field error comes with `errors`."
+  },
+  "404": {
+    "$ref": "#/components/responses/NotFound"
+  },
+  "409": {
+    "description": "The request costs more than `max_total_credits` (`CreditCeilingExceeded`), or another request with this `Idempotency-Key` is still running (`IdempotencyKeyInUse`).",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 409
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "CreditCeilingExceeded",
+                    "IdempotencyKeyInUse"
+                  ]
+                },
+                "total_credits": {
+                  "description": "With `CreditCeilingExceeded`: what the request costs now.",
+                  "type": "number",
+                  "example": 1.5
+                },
+                "max_total_credits": {
+                  "description": "With `CreditCeilingExceeded`: the ceiling it was sent with.",
+                  "type": "number",
+                  "example": 1
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "403": {
+    "description": "The workspace's plan lacks a verification or notification method sent (`PlanRestricted`), or an OAuth app's token lacks `documents:write` (`InsufficientScope`); also a deactivated membership or a role.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 403
+                },
+                "message": {
+                  "type": "string",
+                  "example": "WhatsApp notification is not available for your current plan."
+                },
+                "code": {
+                  "type": "string",
+                  "enum": [
+                    "PlanRestricted",
+                    "InsufficientScope"
+                  ],
+                  "example": "PlanRestricted"
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -1546,10 +2015,64 @@ Responses:
     }
   },
   "400": {
-    "description": "The document is not pending signature, the signer is not part of the assignment, has already signed, or waits for an earlier signing step; or the account lacks credits for the reminder."
+    "description": "The document is not pending signature, the signer is not part of the assignment, has already signed, or waits for an earlier signing step; or the account lacks credits for the reminder.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 400
+                },
+                "message": {
+                  "type": "string",
+                  "example": "This signer has already signed."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
   },
   "404": {
-    "description": "The assignment or signer was not found on this document."
+    "description": "The assignment or signer was not found on this document.",
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            {
+              "properties": {
+                "status": {
+                  "type": "integer",
+                  "example": 404
+                },
+                "message": {
+                  "type": "string",
+                  "example": "Assignment not found."
+                }
+              },
+              "type": "object"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "403": {
+    "$ref": "#/components/responses/Forbidden",
+    "description": "With a user's token or key, a deactivated membership, a role or an OAuth scope refuses it."
   },
   "401": {
     "$ref": "#/components/responses/Unauthorized"
@@ -1666,7 +2189,7 @@ Request body:
             "description": "Contact email for delivery-failure notices.",
             "type": "string",
             "format": "email",
-            "example": "signer@example.invalid"
+            "example": "ops@example.invalid"
           },
           "events": {
             "description": "Event types to deliver (see `GET /v1/webhooks/event-types`).",
@@ -1802,7 +2325,7 @@ Request body:
           "email": {
             "type": "string",
             "format": "email",
-            "example": "signer@example.invalid"
+            "example": "ops@example.invalid"
           },
           "events": {
             "type": "array",
@@ -2184,6 +2707,9 @@ Responses:
             {
               "properties": {
                 "data": {
+                  "required": [
+                    "resource"
+                  ],
                   "oneOf": [
                     {
                       "$ref": "#/components/schemas/DocumentContract"
@@ -2289,6 +2815,9 @@ Responses:
             {
               "properties": {
                 "data": {
+                  "required": [
+                    "resource"
+                  ],
                   "oneOf": [
                     {
                       "$ref": "#/components/schemas/DocumentContract"
@@ -2321,36 +2850,7 @@ Responses:
     "$ref": "#/components/responses/ContractInputError"
   },
   "403": {
-    "description": "The workspace's plan does not include contract tracking.",
-    "content": {
-      "application/json": {
-        "schema": {
-          "type": "object",
-          "allOf": [
-            {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            },
-            {
-              "properties": {
-                "status": {
-                  "type": "integer",
-                  "example": 403
-                },
-                "message": {
-                  "type": "string",
-                  "example": "Contract tracking is not available for your current plan."
-                }
-              },
-              "type": "object"
-            }
-          ]
-        },
-        "example": {
-          "status": 403,
-          "message": "Contract tracking is not available for your current plan."
-        }
-      }
-    }
+    "$ref": "#/components/responses/ContractPlanRestricted"
   },
   "409": {
     "$ref": "#/components/responses/ContractChanged"
@@ -2487,7 +2987,14 @@ Responses:
             {
               "properties": {
                 "data": {
-                  "$ref": "#/components/schemas/DocumentContract"
+                  "required": [
+                    "resource"
+                  ],
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DocumentContract"
+                    }
+                  ]
                 }
               },
               "type": "object"
@@ -2506,36 +3013,7 @@ Responses:
     "$ref": "#/components/responses/ContractInputError"
   },
   "403": {
-    "description": "The workspace's plan does not include contract tracking.",
-    "content": {
-      "application/json": {
-        "schema": {
-          "type": "object",
-          "allOf": [
-            {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            },
-            {
-              "properties": {
-                "status": {
-                  "type": "integer",
-                  "example": 403
-                },
-                "message": {
-                  "type": "string",
-                  "example": "Contract tracking is not available for your current plan."
-                }
-              },
-              "type": "object"
-            }
-          ]
-        },
-        "example": {
-          "status": 403,
-          "message": "Contract tracking is not available for your current plan."
-        }
-      }
-    }
+    "$ref": "#/components/responses/ContractPlanRestricted"
   },
   "409": {
     "$ref": "#/components/responses/ContractChanged"
@@ -2625,7 +3103,14 @@ Responses:
             {
               "properties": {
                 "data": {
-                  "$ref": "#/components/schemas/DocumentContract"
+                  "required": [
+                    "resource"
+                  ],
+                  "allOf": [
+                    {
+                      "$ref": "#/components/schemas/DocumentContract"
+                    }
+                  ]
                 }
               },
               "type": "object"
@@ -2644,36 +3129,7 @@ Responses:
     "$ref": "#/components/responses/ContractInputError"
   },
   "403": {
-    "description": "The workspace's plan does not include contract tracking.",
-    "content": {
-      "application/json": {
-        "schema": {
-          "type": "object",
-          "allOf": [
-            {
-              "$ref": "#/components/schemas/ErrorEnvelope"
-            },
-            {
-              "properties": {
-                "status": {
-                  "type": "integer",
-                  "example": 403
-                },
-                "message": {
-                  "type": "string",
-                  "example": "Contract tracking is not available for your current plan."
-                }
-              },
-              "type": "object"
-            }
-          ]
-        },
-        "example": {
-          "status": 403,
-          "message": "Contract tracking is not available for your current plan."
-        }
-      }
-    }
+    "$ref": "#/components/responses/ContractPlanRestricted"
   },
   "409": {
     "$ref": "#/components/responses/ContractChanged"
@@ -2873,7 +3329,7 @@ Responses:
     "data": {
       "resource": "assignment",
       "id": "615606ef81d199996981dbce",
-      "sender_email": "signer@example.invalid",
+      "sender_email": "sender@example.invalid",
       "method": "collect",
       "expires_at": "2021-09-30T21:00:00Z",
       "message": null,
@@ -2881,7 +3337,7 @@ Responses:
         {
           "id": "61521202f665dffcef5f6b24",
           "full_name": "Kennith Kuphal",
-          "email": "signer@example.invalid",
+          "email": "tromp.deon@example.invalid",
           "verification_method": "Email",
           "notification_methods": [
             "Email"
@@ -2893,7 +3349,7 @@ Responses:
         {
           "id": "615212039529a822e24b6913",
           "full_name": "Sonny Bayer",
-          "email": "signer@example.invalid",
+          "email": "tillman31@example.invalid",
           "verification_method": "Whatsapp",
           "notification_methods": [
             "Whatsapp"
@@ -2917,7 +3373,7 @@ Responses:
           "signer": {
             "id": "61521202f665dffcef5f6b24",
             "full_name": "Kennith Kuphal",
-            "email": "signer@example.invalid"
+            "email": "tromp.deon@example.invalid"
           },
           "field": {
             "id": "6152120297080d55bdd13197",
@@ -2948,7 +3404,7 @@ Responses:
           "signer": {
             "id": "615212039529a822e24b6913",
             "full_name": "Sonny Bayer",
-            "email": "signer@example.invalid"
+            "email": "tillman31@example.invalid"
           },
           "field": {
             "id": "6152120297080d55bdd13197",
@@ -2975,13 +3431,13 @@ Responses:
           {
             "id": "61521202f665dffcef5f6b24",
             "full_name": "Kennith Kuphal",
-            "email": "signer@example.invalid",
+            "email": "tromp.deon@example.invalid",
             "completed": false
           },
           {
             "id": "615212039529a822e24b6913",
             "full_name": "Sonny Bayer",
-            "email": "signer@example.invalid",
+            "email": "tillman31@example.invalid",
             "completed": false
           }
         ]
@@ -2989,11 +3445,7 @@ Responses:
       "signing_urls": [
         {
           "signer_id": "61521202f665dffcef5f6b24",
-          "url": "https:signer@example.invalid"
-        },
-        {
-          "signer_id": "615212039529a822e24b6913",
-          "url": "https:signer@example.invalid"
+          "url": "https://api.assinafy.com.br/v1/sign/615213edf8a58f132e1b2384?email=tromp.deon@example.invalid"
         }
       ]
     }
@@ -3012,7 +3464,7 @@ Responses:
     "data": {
       "resource": "assignment",
       "id": "615605f8f0cc742d680c62c5",
-      "sender_email": "signer@example.invalid",
+      "sender_email": "sender@example.invalid",
       "method": "virtual",
       "expires_at": "2021-09-30T21:00:00Z",
       "message": null,
@@ -3020,7 +3472,7 @@ Responses:
         {
           "id": "615605f50e968054a5b7c9b8",
           "full_name": "John Dove",
-          "email": "signer@example.invalid",
+          "email": "joe@example.invalid",
           "verification_method": "Email",
           "notification_methods": [
             "Email"
@@ -3032,7 +3484,7 @@ Responses:
         {
           "id": "615605f50e968054a5b7c9b9",
           "full_name": "Jane Doe",
-          "email": "signer@example.invalid",
+          "email": "jane@example.invalid",
           "verification_method": "Whatsapp",
           "notification_methods": [
             "Whatsapp"
@@ -3050,7 +3502,7 @@ Responses:
           "signer": {
             "id": "615605f50e968054a5b7c9b8",
             "full_name": "John Dove",
-            "email": "signer@example.invalid"
+            "email": "joe@example.invalid"
           },
           "field": {
             "id": "61521202f2f86152752c6a1b",
@@ -3069,13 +3521,13 @@ Responses:
           {
             "id": "615605f50e968054a5b7c9b8",
             "full_name": "John Dove",
-            "email": "signer@example.invalid",
+            "email": "joe@example.invalid",
             "completed": false
           },
           {
             "id": "615605f50e968054a5b7c9b9",
             "full_name": "Jane Doe",
-            "email": "signer@example.invalid",
+            "email": "jane@example.invalid",
             "completed": false
           }
         ]
@@ -3083,11 +3535,11 @@ Responses:
       "signing_urls": [
         {
           "signer_id": "615605f50e968054a5b7c9b8",
-          "url": "https:signer@example.invalid"
+          "url": "https://api.assinafy.com.br/v1/sign/615213edf8a58f132e1b2384?email=joe@example.invalid"
         },
         {
           "signer_id": "615605f50e968054a5b7c9b9",
-          "url": "https:signer@example.invalid"
+          "url": "https://api.assinafy.com.br/v1/sign/615213edf8a58f132e1b2384?email=jane@example.invalid"
         }
       ]
     }
@@ -3535,10 +3987,12 @@ Responses:
 {
   "name": "per-page",
   "in": "query",
-  "description": "Records per page (max 100).",
+  "description": "Records per page: 20 by default, at most 50; a larger value answers 50 a page.",
   "schema": {
     "type": "integer",
-    "maximum": 100,
+    "default": 20,
+    "maximum": 50,
+    "minimum": 1,
     "example": 25
   }
 }
@@ -3606,7 +4060,7 @@ Responses:
 
 ```json
 {
-  "description": "The request breaks a contract rule. `errors` has one entry per problem found: the `field` as sent (`null` when the request as a whole is refused), a stable `code` to translate, and the `message` in the platform's language; `message` at the top is the first entry's. The contract's own rules on the terms, and the external references' items, report every field that breaks one, an entry per field (its first problem); the other checks (the body, its fields, the contract's state, a renewal's or a link's conditions) stop at the first problem they find.\n\n| Code | Field | Refused when |\n|------|-------|--------------|\n| `InvalidBody` | — | The body is not a JSON object (a list, a bare value), or a `PUT` of contract terms sends no attribute. |\n| `UnknownField` | the attribute | The endpoint does not take the attribute; one entry per attribute. |\n| `NotSingleValue` | the attribute | On a `PUT` of contract terms, a list sent for a term that takes one value (every term but `metadata` and `external_references`). On a link, the same list answers the term's own code. |\n| `Required` | `parent_document_id`, `relation_type`, `external_references[i].system`, `external_references[i].id` | A first link without `parent_document_id` (a pending link that was removed meanwhile) or `relation_type`; an `external_references` item without `system` or `id` (`i` is its place in the list sent, from 0). |\n| `Invalid` | the field | The value is not of the field's type or form: `status` not one of the four; `currency` not three letters; `auto_renew` not a boolean; `owner_id` not a user id; `value` not a number; `counterparty_name` holding HTML; `metadata` not an object; `external_references` not a list, an item's `system` (`external_references[i].system`) with characters other than letters, digits, `_`, `-` and `.`, or its `id` (`external_references[i].id`) with an emoji or another 4-byte character; `parent_document_id` not text; `relation_type` not `amendment`, `renewal` or `termination`; `term` not a whole number from 1; `reason` not text. On the list: a filter sent as a list, a `status` not one of the four, `ending_within_days` not a whole number. |\n| `TooSmall`, `TooBig` | the field | `value` below 0 or above 9999999999999.99; `renewal_term_months` outside 1 to 600; `notice_period_days` (and the list's `ending_within_days`) outside 0 to 3650. |\n| `TooLong` | the field | `counterparty_name` over 255 characters, counting each emoji as stored (several characters); `counterparty_taxpayer_id` over 20; `reason` over 500; `external_references[i].system` over 64 or `external_references[i].id` over 255. |\n| `TooMany` | `external_references` | More than 20 items. |\n| `TooManyDecimals` | `value` | More than two decimal places. |\n| `InvalidDate` | `start_date`, `end_date`, `updated_at`; the list's `end_date_from`, `end_date_to` | Not a date as `YYYY-MM-DD` (an impossible one such as `2026-02-30` included); `updated_at` not a date and time as the API writes it (`2026-10-23T12:00:00Z`, or with an offset). |\n| `DateTooEarly` | `start_date`, `end_date` | Before the year 1000. |\n| `DateTooLate` | `end_date` | A renewal by the term would pass 9999-12-31. |\n| `EndBeforeStart` | `end_date` | Before `start_date`. |\n| `InvalidTaxpayerId` | `counterparty_taxpayer_id` | Not a valid CPF or CNPJ (formatted or not). |\n| `NotAMember` | `owner_id` | Not an active member of the workspace. |\n| `TooManyKeys` | `metadata` | More than 50 keys. |\n| `InvalidKey` | `metadata` | A key that is not 1 to 40 letters, digits, `_`, `-` or `.`. |\n| `InvalidValue` | `metadata` | A value that is not plain text of at most 500 characters. |\n| `NumberUnderDateKey` | `metadata` | A number under a key ending in `_at`, or `stuck_since`, which the API would return as a date. |\n| `ListKeys` | `metadata` | Keys `0`, `1`, `2`…, which would read back as a list. |\n| `DuplicateReference` | `external_references` | Two items the database takes for one (accents, `ß` and `ss`); items equal case aside are merged, not refused. |\n| `StatusNotSettable` | `status` | A tracked contract sent `expired` or `terminated`, or a closed one sent `draft` or `active`: a contract is closed by terminating it and reopened by renewing it. |\n| `CannotReturnToDraft` | `status` | An `active` contract sent `draft`. |\n| `ExpiredNeedsPastEndDate` | `end_date` | New terms with status `expired` and no `end_date` before today. |\n| `TerminatedNeedsEndDate` | `end_date` | New terms with status `terminated` and no `end_date`. |\n| `UnsignableDocument` | — | New terms, or a first link, on a cancelled, declined or expired document. Terms or a link already on one stay editable. |\n| `DocumentIsAmendment` | — | Terms of its own for a document linked as an amendment: its terms are the changes it makes. |\n| `DocumentHasOwnTerms` | — | A link for a document that tracks a contract of its own: a document is a contract or an amendment, never both. |\n| `ParentHasNoTerms` | `parent_document_id` | The parent named has no contract terms, nor amends a contract that has. |\n| `ParentTerminated` | `parent_document_id` | The parent contract is terminated. |\n| `NoTermChanged` | — | An `amendment` that changes no term, also by dropping its last one. A `renewal` or `termination` may change none. |\n| `TermNotAllowed` | the term | A term the relation type cannot change: a `renewal` changes only `end_date` and `value`, a `termination` only `end_date`. |\n| `AmendmentApplied` | — | The amendment applied when its document was signed and can no longer change. |\n| `TermOrEndDateRequired` | — | A renewal sends neither `term` nor `end_date`. |\n| `TermMismatch` | `term` | Not the contract's current term: the renewal already happened. |\n| `ContractTerminated` | — | A renewal of a terminated contract. |\n| `EndDateRequired` | `end_date` | A renewal by the term, or a `renewal` link without `end_date`, of a contract without an end date. |\n| `EndDateNotAfterCurrent` | `end_date` | A renewal, or a `renewal` link, to a date not after the current end date. |\n| `AlreadyTerminated` | — | A termination of a contract already terminated. |\n\nA body that is not valid JSON is refused before it reaches these endpoints, with the platform's `400` and no `errors`. A link is also checked against what applying it today would give the parent, so a delta the contract would refuse comes back with the contract's own codes.",
+  "description": "The request breaks a contract rule. `errors` has one entry per problem found: the `field` as sent (`null` when the request as a whole is refused), a stable `code` to translate, and the `message` in the platform's language; `message` at the top is the first entry's. The contract's own rules on the terms, and the external references' items, report every field that breaks one, an entry per field (its first problem); the other checks (the body, its fields, the contract's state, a renewal's or a link's conditions) stop at the first problem they find.\n\n| Code | Field | Refused when |\n|------|-------|--------------|\n| `InvalidBody` | — | The body is not a JSON object (a list, a bare value), or a `PUT` of contract terms sends no attribute. |\n| `UnknownField` | the attribute | The endpoint does not take the attribute; one entry per attribute. |\n| `NotSingleValue` | the attribute | On a `PUT` of contract terms, a list sent for a term that takes one value (every term but `metadata` and `external_references`). On a link, the same list answers the term's own code. |\n| `Required` | `parent_document_id`, `relation_type`, `external_references[i].system`, `external_references[i].id` | A first link without `parent_document_id` (a pending link that was removed meanwhile) or `relation_type`; an `external_references` item without `system` or `id` (`i` is its place in the list sent, from 0). |\n| `Invalid` | the field | The value is not of the field's type or form: `status` not one of the four; `currency` not three letters; `auto_renew` not a boolean; `owner_id` not a user id; `value` not a number; `counterparty_name` holding HTML; `metadata` not an object; `external_references` not a list, an item's `system` (`external_references[i].system`) with characters other than letters, digits, `_`, `-` and `.`, or its `id` (`external_references[i].id`) with an emoji or another 4-byte character; `parent_document_id` not text; `relation_type` not `amendment`, `renewal` or `termination`; `term` not a whole number from 1; `reason` not text. On the list: a filter sent as a list, a `status` not one of the four, `ending_within_days` not a whole number. |\n| `TooSmall`, `TooBig` | the field | `value` below 0 or above 9999999999999.99; `renewal_term_months` outside 1 to 600; `notice_period_days` (and the list's `ending_within_days`) outside 0 to 3650. |\n| `TooLong` | the field | `counterparty_name` over 255 characters, counting each emoji as stored (several characters); `counterparty_taxpayer_id` over 20; `reason` over 500; `external_references[i].system` over 64 or `external_references[i].id` over 255. |\n| `TooMany` | `external_references` | More than 20 items. |\n| `TooManyDecimals` | `value` | More than two decimal places. |\n| `InvalidDate` | `start_date`, `end_date`, `updated_at`; the list's `end_date_from`, `end_date_to` | Not a date as `YYYY-MM-DD` (an impossible one such as `2026-02-30` included); `updated_at` not a date and time as the API writes it (`2026-10-23T12:00:00Z`, or with an offset). |\n| `DateTooEarly` | `start_date`, `end_date` | Before the year 1000. |\n| `DateTooLate` | `end_date` | A renewal by the term would pass 9999-12-31. |\n| `EndBeforeStart` | `end_date` | Before `start_date`. |\n| `InvalidTaxpayerId` | `counterparty_taxpayer_id` | Not a valid CPF or CNPJ (formatted or not). |\n| `NotAMember` | `owner_id` | Not an active member of the workspace. |\n| `TooManyKeys` | `metadata` | More than 50 keys. |\n| `InvalidKey` | `metadata` | A key that is not 1 to 40 letters, digits, `_`, `-` or `.`. |\n| `InvalidValue` | `metadata` | A value that is not plain text of at most 500 characters. |\n| `NumberUnderDateKey` | `metadata` | A number under a key ending in `_at`, or `stuck_since`: those keys hold text only. |\n| `ListKeys` | `metadata` | Keys `0`, `1`, `2`…, which would read back as a list. |\n| `DuplicateReference` | `external_references` | Two items the database takes for one (accents, `ß` and `ss`); items equal case aside are merged, not refused. |\n| `StatusNotSettable` | `status` | A tracked contract sent `expired` or `terminated`, or a closed one sent `draft` or `active`: a contract is closed by terminating it and reopened by renewing it. |\n| `CannotReturnToDraft` | `status` | An `active` contract sent `draft`. |\n| `ExpiredNeedsPastEndDate` | `end_date` | New terms with status `expired` and no `end_date` before today. |\n| `TerminatedNeedsEndDate` | `end_date` | New terms with status `terminated` and no `end_date`. |\n| `UnsignableDocument` | — | New terms, or a first link, on a cancelled, declined or expired document. Terms or a link already on one stay editable. |\n| `DocumentIsAmendment` | — | Terms of its own for a document linked as an amendment: its terms are the changes it makes. |\n| `DocumentHasOwnTerms` | — | A link for a document that tracks a contract of its own: a document is a contract or an amendment, never both. |\n| `ParentHasNoTerms` | `parent_document_id` | The parent named has no contract terms, nor amends a contract that has. |\n| `ParentTerminated` | `parent_document_id` | The parent contract is terminated. |\n| `NoTermChanged` | — | An `amendment` that changes no term, also by dropping its last one. A `renewal` or `termination` may change none. |\n| `TermNotAllowed` | the term | A term the relation type cannot change: a `renewal` changes only `end_date` and `value`, a `termination` only `end_date`. |\n| `AmendmentApplied` | — | The amendment applied when its document was signed and can no longer change. |\n| `TermOrEndDateRequired` | — | A renewal sends neither `term` nor `end_date`. |\n| `TermMismatch` | `term` | Not the contract's current term: the renewal already happened. |\n| `ContractTerminated` | — | A renewal of a terminated contract. |\n| `EndDateRequired` | `end_date` | A renewal by the term, or a `renewal` link without `end_date`, of a contract without an end date. |\n| `EndDateNotAfterCurrent` | `end_date` | A renewal, or a `renewal` link, to a date not after the current end date. |\n| `AlreadyTerminated` | — | A termination of a contract already terminated. |\n\nA body that is not valid JSON is refused before it reaches these endpoints, with the platform's `400` and no `errors`. A link is also checked against what applying it today would give the parent, so a delta the contract would refuse comes back with the contract's own codes.",
   "content": {
     "application/json": {
       "schema": {
@@ -3958,6 +4412,44 @@ Responses:
       },
       "type": "object"
     },
+    "signing_features": {
+      "description": "Only with `?expand=signing_features` on `GET /v1/accounts/{accountId}`: which signing features the workspace's subscription includes now (its plan's and any granted to it), so a client offers only the identity checks and notices it can use. `DigitalCertificate` and `VerificationIdDocumentFaceMatchBasic` gate the `DigitalCertificate` and `IdDocumentFaceMatchBasic` verification methods, `WhatsappNotification` the `Whatsapp` notification method (and so the `Whatsapp` verification method), and `VerificationBypass` the `Bypass` verification method. `false` means creating an assignment, or a document from a template, with that method (or estimating its cost) answers `403`. `Embed` gates embedded signing: with `false`, the embed origins endpoints, `\"embedded\": true` on a signer and minting an embed session answer `403` with code `PlanRestricted`. `true` is not a promise: credits, the assignment's own rules (a `DigitalCertificate` signer needs a `virtual` assignment) and a change of plan still apply. Requires the `account:read` OAuth scope.",
+      "required": [
+        "DigitalCertificate",
+        "VerificationIdDocumentFaceMatchBasic",
+        "WhatsappNotification",
+        "VerificationBypass",
+        "Embed"
+      ],
+      "properties": {
+        "DigitalCertificate": {
+          "description": "Signing with the signer's own ICP-Brasil certificate.",
+          "type": "boolean",
+          "example": true
+        },
+        "VerificationIdDocumentFaceMatchBasic": {
+          "description": "Identity check by ID document and face match.",
+          "type": "boolean",
+          "example": false
+        },
+        "WhatsappNotification": {
+          "description": "Sending signature requests by WhatsApp.",
+          "type": "boolean",
+          "example": true
+        },
+        "VerificationBypass": {
+          "description": "Signing without a verification code (the `Bypass` verification method).",
+          "type": "boolean",
+          "example": false
+        },
+        "Embed": {
+          "description": "Embedded signing: the signing screen inside your own app (see **Embedded Signing Guide**).",
+          "type": "boolean",
+          "example": false
+        }
+      },
+      "type": "object"
+    },
     "created_at": {
       "type": "string",
       "format": "date-time",
@@ -4002,7 +4494,7 @@ Responses:
         "null"
       ],
       "format": "email",
-      "example": "signer@example.invalid"
+      "example": "sender@example.invalid"
     },
     "method": {
       "type": "string",
@@ -4213,9 +4705,22 @@ Responses:
 ```json
 {
   "description": "Cost breakdown for an assignment plus current account balances. `credits` is the sum of `breakdown` (notifications, digital-certificate signatures and identity checks). `total_credits` is what the send will take from the credit balance: `credits`, plus `extra_document_cost` when `needs_extra_document` is true. The extra document is not a `breakdown` line.",
+  "required": [
+    "documents",
+    "credits",
+    "needs_extra_document",
+    "extra_document_cost",
+    "total_credits",
+    "breakdown",
+    "document_balance",
+    "credit_balance",
+    "has_sufficient_resources",
+    "blocking_reason",
+    "message"
+  ],
   "properties": {
     "documents": {
-      "description": "Documents consumed (always 1).",
+      "description": "Documents consumed: 1, for an assignment as for an envelope, whatever its documents.",
       "type": "integer",
       "example": 1
     },
@@ -4246,16 +4751,23 @@ Responses:
       }
     },
     "document_balance": {
-      "description": "Documents left in the plan.",
-      "type": "number",
+      "description": "Documents left in the plan. `null` when the account's documents are not limited.",
+      "type": [
+        "number",
+        "null"
+      ],
       "example": 0
     },
     "credit_balance": {
-      "description": "Credits available.",
-      "type": "number",
+      "description": "Credits available. `null` when the account's credits are not limited.",
+      "type": [
+        "number",
+        "null"
+      ],
       "example": 10
     },
     "has_sufficient_resources": {
+      "description": "Whether creating it would pass its balance checks now: the checks creation itself makes, so a contract that allows overage passes with a low `document_balance` or `credit_balance`.",
       "type": "boolean",
       "example": true
     },
@@ -4468,6 +4980,14 @@ Responses:
           },
           "name": {
             "type": "string"
+          },
+          "color": {
+            "description": "6-char hex without leading #.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "ff8800"
           }
         },
         "type": "object"
@@ -4490,6 +5010,35 @@ Responses:
       "items": {
         "$ref": "#/components/schemas/DocumentPage"
       }
+    },
+    "envelope_id": {
+      "description": "Only on `GET /v1/documents/{documentId}?expand=envelope_id` read by the workspace, not in document lists or webhooks, so their payloads keep their shape: the envelope this document is in, or `null` for a document sent on its own, taken out of its envelope, or whose envelope was deleted.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "example": null
+    },
+    "envelope": {
+      "description": "Only on `GET /v1/documents/{documentId}?expand=envelope` read by the workspace and `GET /v1/sign?expand=envelope` or `GET /v1/signers/{signerId}/document?expand=envelope` read with the signer's code, not in document lists or webhooks: the envelope this document is in, or `null` for a document sent on its own, taken out of its envelope, or whose envelope was deleted. The signer's reads name the envelope their code belongs to even when the code's own document was taken out, since the code still reaches the rest.",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "example": "fe1c140cb49b79f940aab95fddd"
+        },
+        "name": {
+          "type": "string",
+          "example": "Contrato de prestação de serviços"
+        }
+      },
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "has_contract": {
       "description": "Only on `GET /v1/documents/{documentId}` read by the workspace, while the environment has contract tracking on: not with a signer's access code, not in document lists or webhooks, and left out when the lookup fails, so a missing key means unknown. Whether `GET /v1/accounts/{accountId}/documents/{documentId}/contract` answers with contract terms, the document's own or those of a contract it amends whose document still exists, so a page can lay out the contract section before reading it.",
@@ -4515,9 +5064,29 @@ Responses:
 
 ```json
 {
-  "description": "The contract terms tracked on a document.",
+  "description": "The contract terms tracked on a document. Every key below is always present, `null` when it holds no value, except `resource`, `document` and `amendments`, which depend on the response.",
+  "required": [
+    "document_id",
+    "status",
+    "counterparty_name",
+    "counterparty_taxpayer_id",
+    "value",
+    "currency",
+    "start_date",
+    "end_date",
+    "auto_renew",
+    "renewal_term_months",
+    "notice_period_days",
+    "term",
+    "owner_id",
+    "metadata",
+    "external_references",
+    "created_at",
+    "updated_at"
+  ],
   "properties": {
     "resource": {
+      "description": "On a response that is this contract alone; list items carry none.",
       "type": "string",
       "example": "document_contract"
     },
@@ -4614,7 +5183,7 @@ Responses:
       "example": "d6zqpbyog2v3xvxerwn8la94"
     },
     "metadata": {
-      "description": "Up to 50 keys of your own, each holding text of at most 500 characters; `null` when there are none. A key ending in `_at` cannot hold a number: the API returns numbers under such keys as dates.",
+      "description": "Up to 50 keys of your own, each holding text of at most 500 characters; `null` when there are none. Values come back exactly as sent. A key ending in `_at`, or `stuck_since`, cannot hold a number.",
       "type": [
         "object",
         "null"
@@ -4627,9 +5196,13 @@ Responses:
       }
     },
     "external_references": {
-      "description": "IDs outside systems use for this contract, ordered by system and id.",
+      "description": "IDs outside systems use for this contract, ordered by system and id; `[]` when there are none.",
       "type": "array",
       "items": {
+        "required": [
+          "system",
+          "id"
+        ],
         "properties": {
           "system": {
             "type": "string",
@@ -4648,7 +5221,7 @@ Responses:
       "description": "Only with `expand=document`: the document the terms are tracked on."
     },
     "amendments": {
-      "description": "Only on the single-contract read: the documents that amend, renew or terminate this contract, the applied ones first by `number`, then the pending ones.",
+      "description": "Only on the contract read and the related read (`GET …/contract`, `GET …/contract/related`), never on the list or on the answer to a write, renewal or termination: the documents that amend, renew or terminate this contract, the applied ones first by `number`, then the pending ones.",
       "type": "array",
       "items": {
         "$ref": "#/components/schemas/DocumentContractAmendment"
@@ -4673,9 +5246,26 @@ Responses:
 
 ```json
 {
-  "description": "A document that amends, renews or terminates a contract: its link and the terms it changes. The parent's terms take the delta once this document is certificated; until then the parent is untouched.",
+  "description": "A document that amends, renews or terminates a contract: its link and the terms it changes. The parent's terms take the delta once this document is certificated; until then the parent is untouched. Every key below is always present, `null` when it holds no value, except `resource`.",
+  "required": [
+    "document_id",
+    "document_name",
+    "parent_document_id",
+    "relation_type",
+    "number",
+    "status",
+    "document_status",
+    "apply_error",
+    "currency",
+    "terms",
+    "changes",
+    "applied_at",
+    "created_at",
+    "updated_at"
+  ],
   "properties": {
     "resource": {
+      "description": "On a response that is this amendment alone; the entries of a contract's `amendments` carry none.",
       "type": "string",
       "example": "document_contract_amendment"
     },
@@ -5027,6 +5617,43 @@ Responses:
         "null"
       ],
       "example": null
+    },
+    "code": {
+      "description": "On the refusals a client can act on: see Reading a refusal. Other refusals have only `message`.",
+      "type": "string",
+      "example": "PlanRestricted"
+    },
+    "errors": {
+      "description": "On a `400` about a field (a model's validation, a missing or an unknown field): one entry per field in error; `message` stays the first entry's. Other `400`s have only `message`. See Reading a refusal.",
+      "type": "array",
+      "items": {
+        "required": [
+          "field",
+          "code",
+          "message"
+        ],
+        "properties": {
+          "field": {
+            "description": "The field as sent, a dot for a nested one (`address.line1`); `null` when the request as a whole is refused.",
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "full_name"
+          },
+          "code": {
+            "description": "`Required`, `UnknownField` or `Invalid`; the contract endpoints have codes of their own.",
+            "type": "string",
+            "example": "Required"
+          },
+          "message": {
+            "description": "In the platform's language.",
+            "type": "string",
+            "example": "Full Name cannot be blank."
+          }
+        },
+        "type": "object"
+      }
     }
   },
   "type": "object"
@@ -5044,24 +5671,42 @@ Responses:
       "example": "signature_request"
     },
     "status": {
+      "description": "Furthest delivery stage reached. `opened` means the email was opened/clicked or the WhatsApp message was read.",
       "type": "string",
       "enum": [
         "sent",
+        "delivered",
+        "opened",
         "failed"
       ],
-      "example": "sent"
+      "example": "failed"
     },
     "error_code": {
+      "description": "Why the notification failed. Only set when `status` is `failed`.",
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "enum": [
+        "MailboxFull",
+        "AddressNotFound",
+        "AddressSuppressed",
+        "ContentRejected",
+        "MarkedAsSpam",
+        "NotOnWhatsapp",
+        "RecipientRestricted",
+        "NotSent",
+        "Unknown"
+      ],
+      "example": "MailboxFull"
     },
     "error_message": {
+      "description": "Human-readable, localized explanation of `error_code`. Only set when `status` is `failed`.",
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "example": "A caixa de entrada do destinatário está cheia. Peça ao signatário para liberar espaço ou use outro e-mail."
     },
     "sent_at": {
       "type": [
@@ -5077,7 +5722,7 @@ Responses:
         "null"
       ],
       "format": "date-time",
-      "example": null
+      "example": "2026-07-07T12:05:00Z"
     }
   },
   "type": "object"
@@ -5223,6 +5868,7 @@ Responses:
       "example": 10
     },
     "has_sufficient_credits": {
+      "description": "Whether the reminder would pass its credit check now: the check the reminder itself makes, so a contract that allows overage passes with a low `credit_balance`, and a plan whose payment is pending doesn't, whatever the balance.",
       "type": "boolean",
       "example": true
     }
@@ -5256,7 +5902,7 @@ Responses:
         "null"
       ],
       "format": "email",
-      "example": "signer@example.invalid"
+      "example": "john@example.invalid"
     },
     "whatsapp_phone_number": {
       "description": "E.164 format; normalized on save.",
@@ -5287,13 +5933,23 @@ Responses:
 
 ```json
 {
+  "description": "One entry per signer whose turn has come. The link depends on how the signer gets the invitation: with `Email` it is a page that does not open the document by itself, where the signer asks for their invitation again by e-mail; with `Whatsapp` only it is `null` (the signer has their link in the WhatsApp message). An embedded signer (`embedded: true`) never gets a link: `url` is `null` and the integrator mints an embed session for them instead.",
   "properties": {
     "signer_id": {
       "type": "string"
     },
     "url": {
-      "type": "string",
-      "example": "https:signer@example.invalid"
+      "description": "See the schema description. `null` for a signer notified only by WhatsApp and for an embedded signer.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "example": "https://api.assinafy.com.br/v1/sign/doc1?email=joe@example.invalid"
+    },
+    "embedded": {
+      "description": "Whether the signer was marked `embedded` when the assignment was created.",
+      "type": "boolean",
+      "example": false
     }
   },
   "type": "object"
@@ -5521,7 +6177,7 @@ Responses:
       "description": "Contact email for delivery-failure notices.",
       "type": "string",
       "format": "email",
-      "example": "signer@example.invalid"
+      "example": "ops@example.invalid"
     },
     "events": {
       "description": "Event types delivered to this endpoint (see **List webhook event types**).",
@@ -5592,7 +6248,7 @@ Responses:
       "example": 184467
     },
     "event": {
-      "description": "Event type. See **List webhook event types**.",
+      "description": "Event type. See **List webhook event types**; `webhook_test` is sent only by **Send a test delivery**.",
       "type": "string",
       "example": "signer_viewed_document"
     },
@@ -5635,12 +6291,12 @@ Responses:
       "example": 1790000000
     },
     "subject": {
-      "description": "Who performed the action: a `User`, `Signer` or `Account`, plus a `type` property naming it.",
+      "description": "Who performed the action: a `User`, `Signer` or `Account` (the endpoint itself in a `webhook_test`), plus a `type` property naming it.",
       "type": "object",
       "additionalProperties": true
     },
     "object": {
-      "description": "What the action was performed on: a `Document`, `Signer` or `Template` with its relations expanded, plus a `type` property naming it.",
+      "description": "What the action was performed on: a `Document`, `Signer` or `Template` with its relations expanded (the endpoint itself in a `webhook_test`), plus a `type` property naming it.",
       "type": "object",
       "additionalProperties": true
     },
@@ -5651,6 +6307,207 @@ Responses:
     }
   },
   "type": "object"
+}
+```
+
+### `responses/BadRequest`
+
+```json
+{
+  "description": "The request was rejected because of its current state or invalid input.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorEnvelope"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "integer",
+                "example": 400
+              },
+              "message": {
+                "type": "string",
+                "example": "The request could not be processed."
+              }
+            },
+            "type": "object"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### `responses/ContractPlanRestricted`
+
+```json
+{
+  "description": "Contract tracking is not available to the workspace (`PlanRestricted`): its current subscription lacks it (a custom contract that leaves it out, or an administrator's removal), or it is turned off for the whole service. It comes with every standard plan, the free plan too.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorEnvelope"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "integer",
+                "example": 403
+              },
+              "message": {
+                "type": "string",
+                "example": "Contract tracking is not available for your current plan."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "PlanRestricted"
+                ],
+                "example": "PlanRestricted"
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "example": {
+        "status": 403,
+        "message": "Contract tracking is not available for your current plan.",
+        "code": "PlanRestricted"
+      }
+    }
+  }
+}
+```
+
+### `responses/CreditCeilingExceeded`
+
+```json
+{
+  "description": "The request sent `max_total_credits` and costs more now: the client estimates again and decides. Nothing was created or charged.",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorEnvelope"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "integer",
+                "example": 409
+              },
+              "message": {
+                "type": "string",
+                "example": "This request costs 1.5 credits, more than the max_total_credits of 1."
+              },
+              "code": {
+                "type": "string",
+                "enum": [
+                  "CreditCeilingExceeded"
+                ],
+                "example": "CreditCeilingExceeded"
+              },
+              "total_credits": {
+                "description": "What the request costs now.",
+                "type": "number",
+                "example": 1.5
+              },
+              "max_total_credits": {
+                "description": "The ceiling it was sent with.",
+                "type": "number",
+                "example": 1
+              }
+            },
+            "type": "object"
+          }
+        ]
+      },
+      "example": {
+        "status": 409,
+        "message": "This request costs 1.5 credits, more than the max_total_credits of 1.",
+        "code": "CreditCeilingExceeded",
+        "total_credits": 1.5,
+        "max_total_credits": 1
+      }
+    }
+  }
+}
+```
+
+### `responses/SignerAccessClosed`
+
+```json
+{
+  "description": "With a signer access code: the code is closed, because its signer finished (for a document of an envelope, every document of it they are on) more than 30 minutes ago. It still shows the signer's status and asks for the certified copy (`GET /v1/sign`).",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorEnvelope"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "integer",
+                "example": 410
+              },
+              "message": {
+                "type": "string",
+                "example": "This signing link is closed. The signed document can be sent again from the signing page."
+              }
+            },
+            "type": "object"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+### `responses/SignerStepPending`
+
+```json
+{
+  "description": "With a signer access code: the signer's step has not started yet (sequential signing).",
+  "content": {
+    "application/json": {
+      "schema": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ErrorEnvelope"
+          },
+          {
+            "properties": {
+              "status": {
+                "type": "integer",
+                "example": 400
+              },
+              "message": {
+                "type": "string",
+                "example": "This signer is in a pending step and has not been notified yet."
+              }
+            },
+            "type": "object"
+          }
+        ]
+      }
+    }
+  }
 }
 ```
 
@@ -5724,12 +6581,14 @@ Responses from the app: `200` with `{ "outcome": "synced" | "ignored" | "failed"
 
 ## Error behavior in the app
 
+A 409 carrying `code: "CreditCeilingExceeded"` is a definite refusal before charging and maps to `COST_CHANGED`. Other billable 409s, including `IdempotencyKeyInUse`, remain `UNCERTAIN`. A 403 `InsufficientScope` maps to `INSUFFICIENT_SCOPE` even when an intermediary drops `WWW-Authenticate`; the challenge supplies the missing scope when present. No raw refusal body is returned or stored.
+
 `ValidationError` becomes `INVALID_INPUT`. HTTP 401 becomes `RECONNECT_REQUIRED`; 403 with an `insufficient_scope` challenge becomes `INSUFFICIENT_SCOPE`; other 403 responses become `FORBIDDEN`. HTTP 404 is `NOT_FOUND`, and 429 is `RATE_LIMITED`. Other definitive 4xx rejections become `PROVIDER_REJECTED` with a sanitized provider message.
 
-Timeouts, network failures, 5xx and HTTP 408 are `PROVIDER_UNAVAILABLE` for reads and ordinary mutations, and `UNCERTAIN` for billable calls. HTTP 409 and unexpected billable responses also become `UNCERTAIN`. The SENDING record is kept for reconciliation. A confirmed provider send remains successful even if the subsequent Twenty update fails.
+Timeouts, network failures, 5xx and HTTP 408 are `PROVIDER_UNAVAILABLE` for reads and ordinary mutations, and `UNCERTAIN` for billable calls. Other HTTP 409 responses and unexpected billable responses also become `UNCERTAIN`. The SENDING record is kept for reconciliation. A confirmed provider send remains successful even if the subsequent Twenty update fails.
 
 A document that Assinafy reports as `failed` after confirmed sending or assignment remains `UNKNOWN` with `DOCUMENT_PROCESSING_FAILED` and continues polling; it may later become `certificated`. A definite unsent failure remains `FAILED`. Existing records with send evidence and no recorded local error receive the same recovery behavior. Neither recovery path makes an assigned document eligible for draft deletion.
 
-Contract reads treat HTTP 404 as absent terms. Contract routes map a stale local revision or HTTP 409 to `CONTRACT_CHANGED`, and a 403 without an insufficient-scope challenge to `CONTRACT_UNAVAILABLE`. Contract mutations disable SDK retries. A lost, timed-out, server-error or malformed success response becomes `CONTRACT_UNCERTAIN`; the member must refresh before continuing. `updated_at` and the renewal `term` remain the original preconditions, so refreshing does not replay the mutation. Other definitive rejections retain the shared error mapping above.
+Contract reads treat HTTP 404 as absent terms. Contract routes map a stale local revision or HTTP 409 to `CONTRACT_CHANGED`, and a 403 without the insufficient-scope code or challenge to `CONTRACT_UNAVAILABLE`. Contract mutations disable SDK retries. A lost, timed-out, server-error or malformed success response becomes `CONTRACT_UNCERTAIN`; the member must refresh before continuing. `updated_at` and the renewal `term` remain the original preconditions, so refreshing does not replay the mutation. Other definitive rejections retain the shared error mapping above.
 
 The app's member POST routes expose the `{ ok, ... }` envelope described in [SETUP.md](../SETUP.md#request-flow), with HTTP 200. They do not expose the provider's raw response body. Member-visible messages are selected in Brazilian Portuguese by `get-error-message.util.ts`; persistent status-only messages are selected by `get-status-hints.util.ts`.

@@ -74,7 +74,7 @@ export const manageContractHandler = async (
     if (error instanceof ApiError && error.statusCode === 409) {
       throw new AppFailure('CONTRACT_CHANGED', 'O contrato mudou. Atualize antes de continuar.');
     }
-    if (error instanceof ApiError && error.statusCode === 403 && error.challenge?.error !== 'insufficient_scope') {
+    if (error instanceof ApiError && error.statusCode === 403 && toAppError(error, 'read').code !== 'INSUFFICIENT_SCOPE') {
       throw new AppFailure('CONTRACT_UNAVAILABLE', 'Confira a permissão e o plano de gestão de contratos na Assinafy.');
     }
     const failure = toAppError(error, mutationStarted ? 'billable' : 'read');

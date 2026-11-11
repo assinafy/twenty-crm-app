@@ -138,6 +138,7 @@ describe('manageContractHandler', () => {
   it.each([
     [new ApiError('conflict', 409), 'CONTRACT_CHANGED'],
     [new ApiError('plan', 403), 'CONTRACT_UNAVAILABLE'],
+    [ApiError.fromResponse(403, { code: 'InsufficientScope' }), 'INSUFFICIENT_SCOPE'],
     [new ApiError('unauthorized', 401), 'RECONNECT_REQUIRED'],
     [new ApiError('rate', 429), 'RATE_LIMITED'],
     [new ApiError('bad', 400), 'PROVIDER_REJECTED'],

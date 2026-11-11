@@ -34,6 +34,7 @@ import { isAssinafyId } from 'src/utils/is-assinafy-id.util';
 import { mapAssignmentSigners } from 'src/utils/map-assignment-signers.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 import { toDocumentSummary } from 'src/utils/to-document-summary.util';
+import { toCents } from 'src/utils/to-cents.util';
 import { validateExpiresAt } from 'src/utils/validate-expires-at.util';
 
 type Delivery = { documentId: string; assignment: IAssignment | null };
@@ -110,7 +111,7 @@ const assertTimeForBillableCall = (ctx: Pick<HandlerContext, 'now'>, deadlineMs:
 };
 
 const deliver = async (
-  ctx: Pick<HandlerContext, 'now'>,
+  ctx: Pick<HandlerContext, 'now' | 'createAssinafyClient'>,
   input: SendSignatureRequestInput,
   resolved: ResolvedCredential,
   documentId: string | null,
@@ -119,6 +120,7 @@ const deliver = async (
   const signers = await upsertSigners(resolved.client, input.signers);
   assertTimeForBillableCall(ctx, input.deadlineMs);
   const options = {
+    max_total_credits: toCents(input.expectedTotalCredits) / 100,
     ...(input.message === null ? {} : { message: input.message }),
     ...(input.expiresAt === null ? {} : { expires_at: input.expiresAt }),
   };
@@ -127,10 +129,13 @@ const deliver = async (
   if (source.type === 'TEMPLATE') {
     const templateSigners = buildTemplateSigners(signers, input.sequential);
     const editorFields = source.editorFields.map(({ fieldId, value }) => ({ field_id: fieldId, value }));
+    // An idempotency key enables SDK retries; keep this billable request single-attempt.
+    const client = ctx.createAssinafyClient(resolved.credential, { accountId: resolved.accountId, maxRetries: 0 });
     // The response is read inside the billable call: an unexpected body must not read as a definitive rejection.
     return billable(async () => {
-      const created = await resolved.client.documents.createFromTemplate(source.templateId, templateSigners, {
+      const created = await client.documents.createFromTemplate(source.templateId, templateSigners, {
         name: input.name,
+        idempotencyKey: input.requestId,
         ...options,
         ...(editorFields.length > 0 ? { editor_fields: editorFields } : {}),
       });
