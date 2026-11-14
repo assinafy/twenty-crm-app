@@ -36,8 +36,6 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 
 TypeScript is pinned to 6.0.3: Twenty 2.58 builds with the classic compiler API, which TypeScript 7 no longer exposes. Upgrade this pin when the Twenty CLI supports the new compiler. Other direct dependencies use their current stable releases; Node.js uses the LTS line.
 
-The v2 visual specification and the sandbox adaptation are in [DESIGN.md](DESIGN.md).
-
 ### Tests
 
 - Unit tests (`*.test.ts`) live in `__tests__` folders next to the code. Integration suites (`*.integration-test.ts`, Twenty test server) live in `src/__tests__/integration/`, the live suite (`*.live-test.ts`, Assinafy sandbox) in `src/__tests__/live/` and the end-to-end suite (`*.e2e-test.ts`, the app installed on the Twenty test server with the Assinafy simulator) in `src/__tests__/e2e/`.
