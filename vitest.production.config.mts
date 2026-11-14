@@ -1,7 +1,6 @@
 import { fileURLToPath } from 'node:url';
 
 import { loadEnv } from 'vite';
-import { DEV_API_KEY } from 'twenty-sdk/cli';
 import { defineConfig } from 'vitest/config';
 
 const loaded = loadEnv('production', process.cwd(), 'ASSINAFY_PRODUCTION_');
@@ -21,8 +20,8 @@ const TWENTY_API_URL = process.env.TWENTY_API_URL ?? 'http://localhost:2021';
 if (TWENTY_API_URL !== 'http://localhost:2021') {
   throw new Error('The production contract test installs the app only on http://localhost:2021.');
 }
-const TWENTY_API_KEY = process.env.TWENTY_API_KEY ?? DEV_API_KEY;
-const TWENTY_WORKSPACE_API_KEY = process.env.TWENTY_WORKSPACE_API_KEY ?? DEV_API_KEY;
+const TWENTY_API_KEY = process.env.TWENTY_API_KEY ?? '';
+const TWENTY_WORKSPACE_API_KEY = process.env.TWENTY_WORKSPACE_API_KEY ?? '';
 const TWENTY_USER_ACCESS_TOKEN = process.env.TWENTY_USER_ACCESS_TOKEN ?? '';
 
 // The shared setup installs and uninstalls only the isolated local Twenty app. Provider credentials reach workers

@@ -31,36 +31,36 @@ let token: string;
 
 // A draft workflow whose manual trigger runs the app's workflow action with `input`.
 const createWorkflow = async (name: string, input: Record<string, unknown>): Promise<string> => {
-  const { createWorkflow: workflow } = await graphql<{ createWorkflow: { id: string } }>(
+  const { createCoreWorkflow: workflow } = await graphql<{ createCoreWorkflow: { id: string } }>(
     'graphql',
-    'mutation ($data: WorkflowCreateInput!) { createWorkflow(data: $data) { id } }',
-    { data: { name } },
+    'mutation ($input: CreateCoreWorkflowInput!) { createCoreWorkflow(input: $input) { id } }',
+    { input: { name } },
   );
-  cleanup.push(() => graphql('graphql', 'mutation ($id: UUID!) { destroyWorkflow(id: $id) { id } }', { id: workflow.id }));
+  cleanup.push(() => graphql('graphql', 'mutation ($input: DeleteCoreWorkflowsInput!) { deleteCoreWorkflows(input: $input) { id } }', { input: { coreWorkflowIds: [workflow.id] } }));
 
-  const { workflowVersions } = await poll(
+  const { coreWorkflowVersionsByCoreWorkflowId: versions } = await poll(
     () =>
-      graphql<{ workflowVersions: { edges: Array<{ node: { id: string } }> } }>(
+      graphql<{ coreWorkflowVersionsByCoreWorkflowId: Array<{ id: string; status: string }> }>(
         'graphql',
-        'query ($id: UUID!) { workflowVersions(filter: { workflowId: { eq: $id } }) { edges { node { id } } } }',
+        'query ($id: UUID!) { coreWorkflowVersionsByCoreWorkflowId(coreWorkflowId: $id) { id status } }',
         { id: workflow.id },
       ),
-    ({ workflowVersions: versions }) => versions.edges.length > 0,
+    ({ coreWorkflowVersionsByCoreWorkflowId: drafts }) => drafts.some(({ status }) => status === 'DRAFT'),
     { timeoutMs: 20_000, label: 'the draft workflow version' },
   );
-  const workflowVersionId = workflowVersions.edges[0]?.node.id ?? '';
+  const workflowVersionId = versions.find(({ status }) => status === 'DRAFT')?.id ?? '';
 
   await graphql(
     'graphql',
-    'mutation ($input: UpdateWorkflowVersionTriggerInput!) { updateWorkflowVersionTrigger(input: $input) { trigger } }',
-    { input: { workflowVersionId, trigger: { name: 'Manual', type: 'MANUAL', settings: { outputSchema: {} } } } },
+    'mutation ($input: UpdateCoreWorkflowVersionTriggerInput!) { updateCoreWorkflowVersionTrigger(input: $input) { trigger } }',
+    { input: { coreWorkflowVersionId: workflowVersionId, trigger: { name: 'Manual', type: 'MANUAL', settings: { outputSchema: {} } } } },
   );
   await graphql(
     'graphql',
-    'mutation ($input: CreateWorkflowVersionStepInput!) { createWorkflowVersionStep(input: $input) { stepsDiff } }',
+    'mutation ($input: CreateCoreWorkflowVersionStepInput!) { createCoreWorkflowVersionStep(input: $input) { stepsDiff } }',
     {
       input: {
-        workflowVersionId,
+        coreWorkflowVersionId: workflowVersionId,
         stepType: 'LOGIC_FUNCTION',
         parentStepId: 'trigger',
         defaultSettings: {
@@ -77,10 +77,10 @@ const createWorkflow = async (name: string, input: Record<string, unknown>): Pro
 
 // Runs the version as the member and returns the action's output once the run ends.
 const runWorkflow = async (workflowVersionId: string): Promise<WorkflowOutput> => {
-  const { runWorkflowVersion } = await graphql<{ runWorkflowVersion: { workflowRunId: string } }>(
+  const { runCoreWorkflowVersion } = await graphql<{ runCoreWorkflowVersion: { workflowRunId: string } }>(
     'graphql',
-    'mutation ($input: RunWorkflowVersionInput!) { runWorkflowVersion(input: $input) { workflowRunId } }',
-    { input: { workflowVersionId } },
+    'mutation ($input: RunCoreWorkflowVersionInput!) { runCoreWorkflowVersion(input: $input) { workflowRunId } }',
+    { input: { coreWorkflowVersionId: workflowVersionId } },
   );
   type Run = {
     status: string;
@@ -91,7 +91,7 @@ const runWorkflow = async (workflowVersionId: string): Promise<WorkflowOutput> =
       graphql<{ workflowRuns: { edges: Array<{ node: Run }> } }>(
         'graphql',
         'query ($id: UUID!) { workflowRuns(filter: { id: { eq: $id } }) { edges { node { status state } } } }',
-        { id: runWorkflowVersion.workflowRunId },
+        { id: runCoreWorkflowVersion.workflowRunId },
       ),
     ({ workflowRuns: runs }) => ['COMPLETED', 'FAILED'].includes(runs.edges[0]?.node.status ?? ''),
     { timeoutMs: 180_000, intervalMs: 2_000, label: 'the workflow run to end' },

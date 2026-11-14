@@ -21,7 +21,7 @@ export const TextInput = ({ label, value, onChange, type = 'text', hint, multili
   const props = {
     id,
     value,
-    style: FIELD_STYLES.control,
+    style: { ...FIELD_STYLES.control, ...(rest.disabled ? FIELD_STYLES.disabled : {}) },
     'aria-describedby': hint ? hintId : undefined,
     onChange: (event: unknown) => onChange(readEventValue(event)),
     ...rest,

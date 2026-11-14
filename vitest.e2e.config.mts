@@ -2,14 +2,13 @@ import { fileURLToPath } from 'node:url';
 
 import { loadEnv } from 'vite';
 import { BaseSequencer, type TestSpecification } from 'vitest/node';
-import { DEV_API_KEY } from 'twenty-sdk/cli';
 import { defineConfig } from 'vitest/config';
 
 // Opt-in end-to-end suite: installs a simulation build of the app on the local Twenty test server (2021 only), with
 // Assinafy simulated inside the test container on top of the sandbox. Sandbox credentials come from .env.
 const TWENTY_API_URL = process.env.TWENTY_API_URL ?? 'http://localhost:2021';
-// DEV_API_KEY is the seeded, dev-only workspace API key of the local Twenty test image.
-const TWENTY_API_KEY = process.env.TWENTY_API_KEY ?? DEV_API_KEY;
+// Test credentials are explicit; the CLI no longer exports a seeded workspace key.
+const TWENTY_API_KEY = process.env.TWENTY_API_KEY ?? '';
 const TWENTY_USER_ACCESS_TOKEN = process.env.TWENTY_USER_ACCESS_TOKEN ?? '';
 const assinafyEnv = loadEnv('e2e', process.cwd(), 'ASSINAFY_');
 

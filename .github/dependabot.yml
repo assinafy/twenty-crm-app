@@ -22,14 +22,15 @@ updates:
       default-days: 7
     open-pull-requests-limit: 5
     ignore:
-      # Keep types compatible with the oldest supported runtime (Node.js 24).
+      # Keep Node types on the current LTS major (26).
       - dependency-name: '@types/node'
         update-types:
           - version-update:semver-major
     groups:
-      # twenty-sdk, twenty-client-sdk and twenty-ui are released together and must stay on the same version.
+      # twenty, twenty-sdk, twenty-client-sdk and twenty-ui are released together and must stay on the same version.
       twenty:
         patterns:
+          - 'twenty'
           - 'twenty-*'
       dev-dependencies:
         dependency-type: development

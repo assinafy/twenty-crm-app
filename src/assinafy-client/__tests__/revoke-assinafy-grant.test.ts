@@ -44,6 +44,11 @@ describe('revokeAssinafyGrant', () => {
     });
   });
 
+  it('skips a connection without an access token', async () => {
+    await revokeAssinafyGrant('uninstall', async () => null);
+    expect(revokeToken).not.toHaveBeenCalled();
+  });
+
   it.each(['ASSINAFY_CLIENT_ID', 'ASSINAFY_CLIENT_SECRET'])(
     'reads no token when %s is not configured',
     async (variable) => {

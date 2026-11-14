@@ -1,7 +1,13 @@
 import { CoreApiClient } from 'twenty-client-sdk/core';
 import { MetadataApiClient } from 'twenty-client-sdk/metadata';
 import { RestApiClient } from 'twenty-client-sdk/rest';
-import { vi } from 'vitest';
+import { inject, vi } from 'vitest';
+
+declare module 'vitest' {
+  export interface ProvidedContext {
+    workspaceApiKey?: string;
+  }
+}
 
 import { ASSINAFY_ACCOUNT_ID_VARIABLE, ASSINAFY_API_KEY_VARIABLE } from 'src/constants/assinafy';
 import {
@@ -24,10 +30,9 @@ const readTokenType = (token: string): unknown => {
 export const API_KEY = process.env.TWENTY_API_KEY ?? '';
 
 // A workspace API key (no person). CI passes the seeded admin's access token as TWENTY_API_KEY, so it comes from
-// TWENTY_WORKSPACE_API_KEY; the checks of person-less calls skip only when neither is an API key.
-const workspaceApiKeyCandidate = process.env.TWENTY_WORKSPACE_API_KEY || API_KEY;
+// TWENTY_WORKSPACE_API_KEY or the short-lived key provided by integration setup.
+const workspaceApiKeyCandidate = process.env.TWENTY_WORKSPACE_API_KEY || inject('workspaceApiKey') || API_KEY;
 export const WORKSPACE_API_KEY = readTokenType(workspaceApiKeyCandidate) === 'API_KEY' ? workspaceApiKeyCandidate : '';
-export const HAS_WORKSPACE_API_KEY = WORKSPACE_API_KEY !== '';
 
 const resolveUserToken = (): string => {
   const token = process.env.TWENTY_USER_ACCESS_TOKEN || (readTokenType(API_KEY) === 'ACCESS' ? API_KEY : '');

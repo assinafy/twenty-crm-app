@@ -8,7 +8,6 @@ import {
   coreClient,
   executeLogicFunction,
   findInstalledApp,
-  HAS_WORKSPACE_API_KEY,
   WORKSPACE_API_KEY,
   type InstalledApp,
   metadataClient,
@@ -62,7 +61,7 @@ const createUnsentDocument = async (): Promise<string> => {
   return created!.id;
 };
 
-describe.skipIf(!HAS_WORKSPACE_API_KEY)('app routes called with the workspace API key', () => {
+describe('app routes called with the workspace API key', () => {
   it.each([
     ['/s/assinafy/context', {}],
     ['/s/assinafy/prepare', {}],

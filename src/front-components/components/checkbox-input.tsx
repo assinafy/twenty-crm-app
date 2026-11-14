@@ -16,17 +16,18 @@ export const CheckboxInput = ({ label, checked, onToggle, disabled, hint }: Chec
   const hintId = `${id}-hint`;
 
   return (
-    <div style={FIELD_STYLES.field}>
-      <div style={FIELD_STYLES.row}>
+    <div style={{ ...FIELD_STYLES.field, ...(disabled ? FIELD_STYLES.disabled : {}) }}>
+      <div style={FIELD_STYLES.checkboxRow}>
         <input
           id={id}
           type="checkbox"
+          style={FIELD_STYLES.checkbox}
           checked={checked}
           disabled={disabled}
           aria-describedby={hint ? hintId : undefined}
           onChange={onToggle}
         />
-        <label htmlFor={id} style={FIELD_STYLES.text}>
+        <label htmlFor={id} style={FIELD_STYLES.checkboxLabel}>
           {label}
         </label>
       </div>

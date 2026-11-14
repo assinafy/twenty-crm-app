@@ -1,7 +1,6 @@
 import {
   defineObject,
   FieldType,
-  MetadataWritability,
   NumberDataType,
   OnDeleteAction,
   RelationType,
@@ -40,7 +39,6 @@ import {
   TEMPLATE_NAME_FIELD_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
 
-const APP_ONLY = MetadataWritability.APPLICATION;
 
 export default defineObject({
   universalIdentifier: ASSINAFY_DOCUMENT_OBJECT_UNIVERSAL_IDENTIFIER,
@@ -68,7 +66,8 @@ export default defineObject({
       label: 'Status',
       description: 'Status da assinatura, sincronizado com a Assinafy.',
       icon: 'IconProgressCheck',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       options: DOCUMENT_STATUS_OPTIONS,
     },
     {
@@ -77,7 +76,8 @@ export default defineObject({
       name: 'assinafyDocumentId',
       label: 'ID do documento na Assinafy',
       icon: 'IconHash',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: CONTRACT_STATUS_FIELD_UNIVERSAL_IDENTIFIER,
@@ -86,7 +86,8 @@ export default defineObject({
       label: 'Status do contrato',
       description: 'Situação dos termos contratuais, independente do andamento das assinaturas.',
       icon: 'IconFileDescription',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       options: CONTRACT_STATUS_OPTIONS,
     },
     {
@@ -96,7 +97,8 @@ export default defineObject({
       label: 'Termos do contrato',
       description: 'Resumo dos termos ou do aditivo, sem CPF/CNPJ, metadados privados ou documentos relacionados.',
       icon: 'IconFileDescription',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
     },
     {
@@ -105,7 +107,8 @@ export default defineObject({
       name: 'contractSyncedAt',
       label: 'Última verificação do contrato',
       icon: 'IconRefresh',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
     },
     {
@@ -114,7 +117,8 @@ export default defineObject({
       name: 'assinafyAccountId',
       label: 'ID do workspace na Assinafy',
       icon: 'IconBuildingCommunity',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: ASSINAFY_ASSIGNMENT_ID_FIELD_UNIVERSAL_IDENTIFIER,
@@ -122,7 +126,8 @@ export default defineObject({
       name: 'assinafyAssignmentId',
       label: 'ID da solicitação na Assinafy',
       icon: 'IconHash',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: REQUEST_ID_FIELD_UNIVERSAL_IDENTIFIER,
@@ -131,7 +136,8 @@ export default defineObject({
       label: 'ID do envio',
       description: 'Chave de idempotência da tentativa de envio.',
       icon: 'IconKey',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: TEMPLATE_NAME_FIELD_UNIVERSAL_IDENTIFIER,
@@ -140,7 +146,8 @@ export default defineObject({
       label: 'Modelo',
       description: 'Modelo da Assinafy usado para criar o documento, se houver.',
       icon: 'IconTemplate',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: SIGNER_COUNT_FIELD_UNIVERSAL_IDENTIFIER,
@@ -148,7 +155,8 @@ export default defineObject({
       name: 'signerCount',
       label: 'Signatários',
       icon: 'IconUsers',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
       universalSettings: { dataType: NumberDataType.INT },
     },
@@ -158,7 +166,8 @@ export default defineObject({
       name: 'signedCount',
       label: 'Assinados',
       icon: 'IconUserCheck',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
       universalSettings: { dataType: NumberDataType.INT },
     },
@@ -169,7 +178,8 @@ export default defineObject({
       label: 'Detalhes dos signatários',
       description: 'Andamento dos signatários informado pela Assinafy.',
       icon: 'IconUsers',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
     },
     {
@@ -178,7 +188,8 @@ export default defineObject({
       name: 'sentAt',
       label: 'Enviado em',
       icon: 'IconSend',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: COMPLETED_AT_FIELD_UNIVERSAL_IDENTIFIER,
@@ -186,7 +197,8 @@ export default defineObject({
       name: 'completedAt',
       label: 'Concluído em',
       icon: 'IconCircleCheck',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: EXPIRES_AT_FIELD_UNIVERSAL_IDENTIFIER,
@@ -194,7 +206,8 @@ export default defineObject({
       name: 'expiresAt',
       label: 'Prazo para assinar',
       icon: 'IconCalendarDue',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: LAST_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER,
@@ -202,7 +215,8 @@ export default defineObject({
       name: 'lastSyncedAt',
       label: 'Última verificação',
       icon: 'IconRefresh',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
     },
     {
@@ -211,7 +225,8 @@ export default defineObject({
       name: 'declineReason',
       label: 'Motivo da recusa',
       icon: 'IconMessageX',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
     },
     {
       universalIdentifier: LAST_ERROR_FIELD_UNIVERSAL_IDENTIFIER,
@@ -220,7 +235,8 @@ export default defineObject({
       label: 'Último erro',
       description: 'Código da última operação com falha neste documento.',
       icon: 'IconAlertTriangle',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       isAuditLogged: false,
     },
     {
@@ -230,7 +246,8 @@ export default defineObject({
       label: 'Documento assinado',
       description: 'PDF certificado e, quando um certificado digital for usado, o PDF com certificado ICP-Brasil.',
       icon: 'IconFileCheck',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       universalSettings: { maxNumberOfValues: 2 },
     },
     {
@@ -239,7 +256,8 @@ export default defineObject({
       name: 'person',
       label: 'Pessoa',
       icon: 'IconUser',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       relationTargetObjectMetadataUniversalIdentifier:
         STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.person.universalIdentifier,
       relationTargetFieldMetadataUniversalIdentifier:
@@ -256,7 +274,8 @@ export default defineObject({
       name: 'company',
       label: 'Empresa',
       icon: 'IconBuildingSkyscraper',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       relationTargetObjectMetadataUniversalIdentifier:
         STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.company.universalIdentifier,
       relationTargetFieldMetadataUniversalIdentifier:
@@ -273,7 +292,8 @@ export default defineObject({
       name: 'opportunity',
       label: 'Oportunidade',
       icon: 'IconTargetArrow',
-      writability: APP_ONLY,
+      isUIEditable: false,
+      disabledFieldPermissionActions: ['canUpdateFieldValue'],
       relationTargetObjectMetadataUniversalIdentifier:
         STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.opportunity.universalIdentifier,
       relationTargetFieldMetadataUniversalIdentifier:

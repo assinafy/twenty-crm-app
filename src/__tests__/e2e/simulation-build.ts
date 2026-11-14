@@ -2,7 +2,7 @@ import { cp, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 
-import { appDevOnce } from 'twenty-sdk/cli';
+import { runTwenty } from 'src/__tests__/integration/run-twenty';
 
 import { CRON_REWRITE, ENDPOINT_REWRITES } from 'src/__tests__/e2e/e2e-constants';
 
@@ -44,8 +44,7 @@ const rewriteExactlyOnce = async (copyPath: string, file: string, rewrites: Arra
 
 const isTopLevel = (appPath: string, source: string): boolean => join(appPath, basename(source)) === source;
 
-// Installs (or upgrades) the app from `appPath` on the CLI's test remote (~/.twenty/config.test.json).
+// Installs the temporary app on the explicitly configured test instance.
 export const syncApp = async (appPath: string): Promise<void> => {
-  const result = await appDevOnce({ appPath, apply: true, force: true });
-  if (!result.success) throw new Error(`Sync of the simulation build failed: ${result.error.message}`);
+  await runTwenty('apply', appPath);
 };

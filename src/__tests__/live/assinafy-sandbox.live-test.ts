@@ -340,7 +340,7 @@ describe('Assinafy sandbox (live)', () => {
     const { status } = await resolved.client.documents.details(documentId);
     const raw = await resolved.client.assignments.estimateCost(documentId, {
       method: 'virtual',
-      signers: buildEstimateSigners(request.signers),
+      signers: buildEstimateSigners(request.signers, request.sequential),
     });
     report('PDF estimate on the fresh upload', { statusAfterEstimate: status, raw });
 

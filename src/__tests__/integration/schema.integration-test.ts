@@ -6,7 +6,6 @@ import {
   API_KEY,
   coreClient,
   findInstalledApp,
-  HAS_WORKSPACE_API_KEY,
   WORKSPACE_API_KEY,
   type InstalledApp,
   metadataClient,
@@ -22,7 +21,7 @@ import {
 } from 'src/constants/universal-identifiers';
 import { type RecordConnection } from 'src/types/record-connection';
 
-const appOnly = (type: string) => ({ type, writability: 'APPLICATION' });
+const appOnly = (type: string) => ({ type, isUIEditable: false, disabledFieldPermissionActions: ['canUpdateFieldValue'] });
 const relationTo = (target: string, reverseFieldUniversalIdentifier: string) => ({
   ...appOnly('RELATION'),
   // Deleting a person, company or opportunity must keep its signature records and only clear the link.
@@ -58,12 +57,12 @@ describe('installed schema', () => {
         __args: { id: objectId },
         nameSingular: true,
         isUICreatable: true,
-        writability: true,
         fieldsList: {
           id: true,
           name: true,
           type: true,
-          writability: true,
+          isUIEditable: true,
+          disabledFieldPermissionActions: true,
           settings: true,
           relation: { type: true, targetObjectMetadata: { nameSingular: true }, targetFieldMetadata: { universalIdentifier: true } },
         },
@@ -72,9 +71,9 @@ describe('installed schema', () => {
     });
     const fields = Object.fromEntries(object.fieldsList.map((field) => [field.name, field]));
 
-    expect(object).toMatchObject({ nameSingular: 'assinafyDocument', isUICreatable: false, writability: 'OPEN' });
+    expect(object).toMatchObject({ nameSingular: 'assinafyDocument', isUICreatable: false });
     expect(fields).toMatchObject({
-      name: { type: 'TEXT', writability: 'OPEN' },
+      name: { type: 'TEXT' },
       status: appOnly('SELECT'),
       assinafyDocumentId: appOnly('TEXT'),
       contractStatus: appOnly('SELECT'),
@@ -126,7 +125,7 @@ describe('installed schema', () => {
 
 describe.each([
   ['a workspace member', USER_TOKEN],
-  ...(HAS_WORKSPACE_API_KEY ? [['the workspace API key', WORKSPACE_API_KEY]] : []),
+  ['the workspace API key', WORKSPACE_API_KEY],
 ])('assinafyDocument writes by %s', (_caller, token) => {
   const core = coreClient(token);
 

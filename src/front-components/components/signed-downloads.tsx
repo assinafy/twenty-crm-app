@@ -20,7 +20,7 @@ export const SignedDownloads = ({ files }: { files: AssinafyDocumentRecord['sign
           href={file.url ?? undefined}
           target="_blank"
           rel="noopener noreferrer"
-          style={{ ...FIELD_STYLES.text, color: 'var(--t-color-blue)' }}
+          style={FIELD_STYLES.download}
           title={file.label}
         >
           {t('Baixar {file}', { file: file.label })}

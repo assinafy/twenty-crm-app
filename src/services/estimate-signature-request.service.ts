@@ -10,8 +10,8 @@ import { normalizeCostEstimate } from 'src/utils/normalize-cost-estimate.util';
 import { requireRoleId } from 'src/utils/require-role-id.util';
 import { toAppError } from 'src/utils/to-app-error.util';
 
-const toTemplateCostSigners = (signers: SignerInput[]): ITemplateCostSigner[] =>
-  buildEstimateSigners(signers).map(({ role_id, ...channel }) => ({ role_id: requireRoleId(role_id), ...channel }));
+const toTemplateCostSigners = (signers: SignerInput[], sequential: boolean): ITemplateCostSigner[] =>
+  buildEstimateSigners(signers, sequential).map(({ role_id, ...channel }) => ({ role_id: requireRoleId(role_id), ...channel }));
 
 // A dry run: Assinafy charges nothing for an estimate. Callers validate a template with findSignatureTemplate first.
 export const estimateSignatureRequest = async (
@@ -19,12 +19,12 @@ export const estimateSignatureRequest = async (
   input: SignatureRequestInput,
   assinafyDocumentId: string | null,
 ): Promise<CostEstimate> => {
-  const { source, signers } = input;
+  const { source, signers, sequential } = input;
 
   try {
     if (source.type === 'TEMPLATE') {
       return normalizeCostEstimate(
-        await client.documents.estimateCostFromTemplate(source.templateId, toTemplateCostSigners(signers)),
+        await client.documents.estimateCostFromTemplate(source.templateId, toTemplateCostSigners(signers, sequential)),
       );
     }
 
@@ -34,7 +34,7 @@ export const estimateSignatureRequest = async (
     return normalizeCostEstimate(
       await client.assignments.estimateCost(assinafyDocumentId, {
         method: 'virtual',
-        signers: buildEstimateSigners(signers),
+        signers: buildEstimateSigners(signers, sequential),
       }),
     );
   } catch (error) {

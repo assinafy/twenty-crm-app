@@ -6,7 +6,7 @@ This reference covers every Assinafy SDK method called by the shipped Twenty app
 
 The application calls `https://api.assinafy.com.br/v1` over HTTPS. OAuth consent uses `https://auth.assinafy.com.br/oauth/authorize`. Only the live suite uses `https://sandbox.assinafy.com.br/v1`; the end-to-end harness rewrites a temporary app copy to its simulator.
 
-`AssinafyClient` receives either `apiKey` (sent as `X-Api-Key`) or `token` (sent as `Authorization: Bearer`). Never supply both. The resolved workspace ID is set as the client's `accountId`. The default timeout is 30 seconds and safe reads can retry twice. The app uses `@assinafy/sdk` 3.0.1 and configures billable assignment, template creation and resend calls without automatic replay. The app wraps those calls with `billable` to preserve uncertain outcomes. PDF and template sends include the confirmed `max_total_credits` ceiling, rounded to cents. Template sends set `Idempotency-Key` to the Twenty `requestId` with `maxRetries: 0`; a keyed request must not opt the app into the SDK's 429 retry behavior.
+`AssinafyClient` receives either `apiKey` (sent as `X-Api-Key`) or `token` (sent as `Authorization: Bearer`). Never supply both. The resolved workspace ID is set as the client's `accountId`. The default timeout is 30 seconds and safe reads can retry twice. The app uses `@assinafy/sdk` 3.0.2 and configures billable assignment, template creation and resend calls without automatic replay. The app wraps those calls with `billable` to preserve uncertain outcomes. PDF and template sends include the confirmed `max_total_credits` ceiling, rounded to cents. Template sends set `Idempotency-Key` to the Twenty `requestId` with `maxRetries: 0`; a keyed request must not opt the app into the SDK's 429 retry behavior.
 
 Successful JSON HTTP responses use `{ "status": 200, "message": "", "data": ... }`. Single-resource SDK methods return `data` directly; list methods return `{ data, meta }`. `meta` comes from `X-Pagination-Current-Page`, `X-Pagination-Total-Count`, `X-Pagination-Page-Count` and `X-Pagination-Per-Page`. Downloads return bytes. OAuth responses have their own payloads.
 
@@ -26,7 +26,7 @@ The WhatsApp phone is omitted for email invitations. A certificate or biometric 
 {"government_id":"11144477735"}
 ```
 
-The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification sends `verification_method: "Email"` with `notification_methods: ["Email"]`; WhatsApp verification sends `"Whatsapp"` with `["Whatsapp"]`; certificate verification (`"DigitalCertificate"`, A1 or A3 certificate media chosen by the signer at signing time) takes either channel, chosen by the member. A certificate signer requires `method: "virtual"`: the certificate flow completes the signer's virtual item, while the ordinary signing endpoint refuses certificate signers and cannot submit placed `collect` fields. SDK 3.0.1 rejects a direct `collect` assignment before `assignments.estimateCost` or `assignments.create` makes a request, with `ValidationError.errors.code` set to `digital_certificate_requires_virtual_method`. For templates, the API derives the assignment method from its placed fields: certificate signers are accepted when no field belongs to a signer role and rejected for a `collect` template. The app reads those field placements and refuses the collect combination before the estimate. A CNPJ has 14 characters and may contain letters; the app sends it upper-cased without punctuation. Biometric verification (`IdDocumentFaceMatchBasic`) also accepts either notification channel, requires a checksum-valid CPF (CNPJ is rejected), and runs entirely in Assinafy with the signer’s consent. The app stores only the verification status, never photos, evidence or the government ID. An `InReview` result is approved or declined in Assinafy; `pending_identity_review` remains open and polled until that decision allows certification. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing.
+The government ID is sent only to Assinafy and is never persisted in Twenty. Email verification sends `verification_method: "Email"` with `notification_methods: ["Email"]`; WhatsApp verification sends `"Whatsapp"` with `["Whatsapp"]`; certificate verification (`"DigitalCertificate"`, A1 or A3 certificate media chosen by the signer at signing time) takes either channel, chosen by the member. A certificate signer requires `method: "virtual"`: the certificate flow completes the signer's virtual item, while the ordinary signing endpoint refuses certificate signers and cannot submit placed `collect` fields. SDK 3.0.2 rejects a direct `collect` assignment before `assignments.estimateCost` or `assignments.create` makes a request, with `ValidationError.errors.code` set to `digital_certificate_requires_virtual_method`. For templates, the API derives the assignment method from its placed fields: certificate signers are accepted when no field belongs to a signer role and rejected for a `collect` template. The app reads those field placements and refuses the collect combination before the estimate. A CNPJ has 14 characters and may contain letters; the app sends it upper-cased without punctuation. Biometric verification (`IdDocumentFaceMatchBasic`) also accepts either notification channel, requires a checksum-valid CPF (CNPJ is rejected), and runs entirely in Assinafy with the signer’s consent. The app stores only the verification status, never photos, evidence or the government ID. An `InReview` result is approved or declined in Assinafy; `pending_identity_review` remains open and polled until that decision allows certification. Exactly one notification channel is sent per signer. The app assigns contiguous steps starting at 1 whenever a certificate signer is present, or when the member selects sequential signing. PDF and template estimates include the same `step` values as the subsequent send; SDK 3.0.2 preserves them in the HTTP payload.
 
 Biometric PDF send (the same signer options apply to template roles):
 
@@ -913,7 +913,7 @@ Responses:
 
 `POST /v1/documents/{documentId}/assignments/estimate-cost`
 
-Returns an unwrapped cost estimate. The app sends `method: virtual` and verification/notification methods only, with no signer creation or invitation.
+Returns an unwrapped cost estimate. The app sends `method: virtual`, verification/notification methods and optional contiguous `step` values starting at 1. Steps match the send payload whenever sequential signing is selected or any signer uses a digital certificate. No contact data is sent, and no signer or invitation is created.
 
 Parameters:
 
@@ -948,6 +948,12 @@ Request body:
             "type": "array",
             "items": {
               "properties": {
+                "step": {
+                  "description": "Optional signing order, matching the subsequent send. The app gives every signer a separate contiguous step when any signer uses DigitalCertificate or sequential signing is selected.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "example": 1
+                },
                 "verification_method": {
                   "description": "Verification method to price. `Whatsapp` forces the WhatsApp notification, so it prices at 0.45 credits per signer; `DigitalCertificate` adds the per-signer signature cost on top of its notification, and with `method: collect` returns `400` (certificate signers sign only virtual assignments). `IdDocumentFaceMatchBasic` requires its account feature, requires the signer to have a valid CPF in `government_id`, and is charged your plan's per-signer verification price on top of its notification.",
                   "type": "string",
@@ -1371,7 +1377,7 @@ Responses:
 
 `POST /v1/accounts/{accountId}/templates/{templateId}/documents/estimate-cost`
 
-Returns an unwrapped cost estimate. Signers carry role_id and verification/notification methods, without contact data. No document is created. The app refuses a certificate signer before this call when the template has a field assigned to any signer role.
+Returns an unwrapped cost estimate. Signers carry `role_id`, verification/notification methods and optional contiguous `step` values starting at 1, without contact data. Steps match the send payload whenever sequential signing is selected or any signer uses a digital certificate. No document is created. The app refuses a certificate signer before this call when the template has a field assigned to any signer role.
 
 Parameters:
 
@@ -1416,6 +1422,12 @@ Request body:
                   "description": "The template role ID associated with the signer.",
                   "type": "string",
                   "example": "fa8c14f32d732271e071998246e"
+                },
+                "step": {
+                  "description": "Optional signing order, matching the subsequent send. The app gives every signer a separate contiguous step when any signer uses DigitalCertificate or sequential signing is selected.",
+                  "type": "integer",
+                  "minimum": 1,
+                  "example": 1
                 },
                 "verification_method": {
                   "description": "Verification method. If provided without notification_methods, the notification method is inferred. Defaults to Email. Verification is never billed on its own — the cost comes from the notification it is paired with, so `Whatsapp` verification requires the WhatsApp notification and costs 0.45 credits per signer. `DigitalCertificate` adds the per-signer signature cost (0.5 credits) on top of the notification cost, and returns `400` when the template has placed signer fields. `IdDocumentFaceMatchBasic` verifies the signer from a photo of their government ID, a photo of them holding it and a liveness check — it requires its account feature, requires the signer to have a valid CPF in `government_id`, and is charged a per-signer fee.",

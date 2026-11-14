@@ -1,8 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
@@ -58,22 +56,12 @@ const assertTestInstance = async () => {
   }
   const response = await fetch(`${E2E_TWENTY_URL}/healthz`).catch(() => null);
   if (!response?.ok) {
-    throw new Error(`No Twenty server answering at ${E2E_TWENTY_URL}. Start it with \`yarn twenty docker:start --test\`.`);
+    throw new Error(`No Twenty server answering at ${E2E_TWENTY_URL}. Start it with \`yarn twenty local start --test\`.`);
   }
   const serverUrl = (await dockerExec(['sh', '-c', 'echo "$SERVER_URL"'])).trim();
   if (serverUrl !== E2E_TWENTY_URL) {
     throw new Error(`Container ${E2E_CONTAINER} serves ${serverUrl}, not ${E2E_TWENTY_URL}.`);
   }
-};
-
-// The CLI reads ~/.twenty/config.test.json when NODE_ENV is "test", so the developer's own remotes stay untouched.
-const writeTestRemote = () => {
-  const directory = join(homedir(), '.twenty');
-  mkdirSync(directory, { recursive: true });
-  writeFileSync(
-    join(directory, 'config.test.json'),
-    JSON.stringify({ remotes: { local: { apiUrl: E2E_TWENTY_URL, apiKey: required('TWENTY_API_KEY') } }, defaultRemote: 'local' }, null, 2),
-  );
 };
 
 // The bracket keeps pkill from matching the shell running it.
@@ -161,7 +149,6 @@ export const setup = async (project: TestProject) => {
     simClientSecret: `sim-secret-${randomBytes(16).toString('hex')}`,
   };
 
-  writeTestRemote();
   // A previous run left with E2E_KEEP_INSTALLED, or one that crashed, is replaced from scratch.
   await uninstallApp().catch(() => undefined);
   await resetRegistrationVariables();

@@ -3,7 +3,6 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   executeLogicFunction,
   findInstalledApp,
-  HAS_WORKSPACE_API_KEY,
   WORKSPACE_API_KEY,
   type InstalledApp,
   metadataClient,
@@ -18,6 +17,7 @@ import {
 let app: InstalledApp;
 
 beforeAll(async () => {
+  if (!WORKSPACE_API_KEY) throw new Error('A workspace API key is required for permission checks.');
   app = await findInstalledApp();
 });
 
@@ -57,7 +57,7 @@ describe('background logic functions without an Assinafy credential', () => {
   });
 });
 
-it.skipIf(!HAS_WORKSPACE_API_KEY)('the workspace API key cannot execute logic functions', async () => {
+it('the workspace API key cannot execute logic functions', async () => {
   const logicFunction = app.logicFunctions.find(
     (candidate) => candidate.universalIdentifier === HEALTH_CHECK_UNIVERSAL_IDENTIFIER,
   );

@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { CoreApiClient } from 'twenty-client-sdk/core';
 import { defineFrontComponent } from 'twenty-sdk/define';
 import { useSelectedRecordIds, useTranslate } from 'twenty-sdk/front-component';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { RECORD_SIGNATURES_FRONT_COMPONENT_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { findRecordDocuments } from 'src/data/find-record-documents';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
@@ -76,8 +76,9 @@ const SignaturesTab = ({ recordId }: { recordId: string }) => {
 
   return (
     <div style={FIELD_STYLES.container}>
+      <h2 style={FIELD_STYLES.title}>{t('Assinaturas')}</h2>
       <div style={FIELD_STYLES.row}>
-        <Button color="accent" onClick={() => setSending(true)}>
+        <Button variant="solid" color="accent" onClick={() => setSending(true)}>
           {t('Enviar para assinatura')}
         </Button>
         <Button variant="ghost" loading={loaded !== null && loaded.version !== version} onClick={reload}>
@@ -89,11 +90,14 @@ const SignaturesTab = ({ recordId }: { recordId: string }) => {
       ) : !Array.isArray(loaded.documents) ? (
         <ErrorCallout error={loaded.documents} action={{ label: t('Tentar novamente'), onClick: reload }} />
       ) : loaded.documents.length === 0 ? (
-        <p style={FIELD_STYLES.muted}>
-          {t(
-            'Nenhum documento foi enviado para assinatura a partir deste registro. Envie um PDF anexado a ele ou um modelo da Assinafy.',
-          )}
-        </p>
+        <div style={FIELD_STYLES.panel}>
+          <h3 style={FIELD_STYLES.strong}>{t('Seu primeiro envio começa aqui')}</h3>
+          <p style={FIELD_STYLES.muted}>
+            {t(
+              'Nenhum documento foi enviado para assinatura a partir deste registro. Envie um PDF anexado a ele ou um modelo da Assinafy.',
+            )}
+          </p>
+        </div>
       ) : (
         <ul style={FIELD_STYLES.list}>
           {loaded.documents.map((document) => {

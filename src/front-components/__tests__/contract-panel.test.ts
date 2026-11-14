@@ -45,7 +45,7 @@ vi.mock('twenty-sdk/front-component', () => ({
   openCommandConfirmationModal: vi.fn<() => Promise<'confirm' | 'cancel'>>(),
   useTranslate: () => ({ t: (message: string) => message }),
 }));
-vi.mock('twenty-ui/primitives/input', () => ({ Button: vi.fn<() => null>() }));
+vi.mock('src/front-components/components/app-button', () => ({ AppButton: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/checkbox-input', () => ({ CheckboxInput: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/error-callout', () => ({ ErrorCallout: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/loading-status', () => ({ LoadingStatus: vi.fn<() => null>() }));
@@ -54,7 +54,7 @@ vi.mock('src/front-components/components/text-input', () => ({ TextInput: vi.fn<
 vi.mock('src/front-components/utils/call-app-route.util', () => ({ callAppRoute: vi.fn<typeof callAppRoute>() }));
 
 import { openCommandConfirmationModal } from 'twenty-sdk/front-component';
-import { Button } from 'twenty-ui/primitives/input';
+import { AppButton as Button } from 'src/front-components/components/app-button';
 
 import { ContractPanel } from 'src/front-components/components/contract-panel';
 import { LoadingStatus } from 'src/front-components/components/loading-status';

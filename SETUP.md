@@ -6,7 +6,7 @@ The [Assinafy API integration reference](docs/ASSINAFY_API.md) documents every S
 
 ## Prerequisites
 
-- Node.js 26 LTS (`.nvmrc` pins 26). Node.js 24.5 and later in the 24 LTS line remain supported; Node types stay on 24 so source remains compatible with that runtime.
+- Node.js 26 LTS (`.nvmrc` pins 26.13.1). Node.js 24.5 and later in the 24 LTS line remain supported. Node types follow 26; avoid runtime APIs unavailable on Node.js 24.
 - Corepack, which provides Yarn 4.18.1 from the `packageManager` field: `corepack enable`.
 - Docker, for the local Twenty servers.
 - For the optional live suite: an Assinafy sandbox API key.
@@ -25,14 +25,18 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 
 ### Toolchain and code layout
 
-- Node.js 26 LTS for development and CI, with Node.js 24 LTS compatibility; Yarn 4.18 through Corepack (`yarn install --immutable`), TypeScript in strict mode, `twenty-sdk`, `twenty-client-sdk` and `twenty-ui` 2.42.0, `@assinafy/sdk` 3.0.1, vitest and oxlint. Do not add a dependency for what a few lines or an installed package already do.
+- Node.js 26 LTS for development and CI, with Node.js 24 LTS compatibility; Yarn 4.18 through Corepack (`yarn install --immutable`), TypeScript in strict mode, `twenty`, `twenty-sdk`, `twenty-client-sdk` and `twenty-ui` 2.58.0, `@assinafy/sdk` 3.0.2, vitest and oxlint. Do not add a dependency for what a few lines or an installed package already do.
 - Never import the generated `CoreSchema` types: declare the shapes a query needs (shared ones in `src/types/`) and assign the query result to them (`const { people }: { people?: RecordConnection<…> | null } = await core.query(…)`), never cast it, so the code typechecks against both the fresh-install stub and the generated client.
 - One export per file: one entity (`define*` default export), function, component, class or type. Constants files in `src/constants/` group related constants. Keep the folder responsibilities and file suffixes of Architecture → Folders (`*.object.ts`, `*.logic-function.ts`, `*.handler.ts`, `*.service.ts`, `*.util.ts`, `*.front-component.tsx`, …), and import through the `src/` path alias.
 - Reuse what exists: the strict parsers and readers in `src/utils/`, `validateSigners` (shared by the front end and the server), `toAppError`, `toAppResult`, `AppFailure`, the credential resolvers in `src/assinafy-client/` and the record mappers in `src/data/`. Check every caller before changing a shared function.
-- Universal identifiers are UUID v4 values in `src/constants/universal-identifiers.ts`. Never change or reuse one; scaffold new entities with `yarn twenty dev:add` or generate a fresh UUID v4.
+- Universal identifiers are UUID v4 values in `src/constants/universal-identifiers.ts`. Never change or reuse one; scaffold new entities with `yarn twenty app add` or generate a fresh UUID v4.
 - Front components are rendering shells. Flow logic, validation and message selection go in pure modules under `src/front-components/utils/`, where they are unit-tested.
 - Logic functions return stable error codes, and the front end maps them to pt-BR messages in `src/front-components/utils/get-error-message.util.ts`. Add the code and its message there whenever a handler can produce or store a new one. Codes stored only in `lastError` (never returned by a route) get their message in `src/front-components/utils/get-status-hints.util.ts` instead.
 - User-facing text is Brazilian Portuguese source text (see User interface language); identifiers, API values, error codes, comments and log lines stay in English.
+
+TypeScript is pinned to 6.0.3: Twenty 2.58 builds with the classic compiler API, which TypeScript 7 no longer exposes. Upgrade this pin when the Twenty CLI supports the new compiler. Other direct dependencies use their current stable releases; Node.js uses the LTS line.
+
+The v2 visual specification and the sandbox adaptation are in [DESIGN.md](DESIGN.md).
 
 ### Tests
 
@@ -57,7 +61,7 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 - Never delete an Assinafy document that may have been assigned: discard and purge only uploads that Assinafy still reports as unsent drafts (or unassigned uploads whose processing failed) of the same Assinafy workspace and that no record references, except a record whose send definitively ended unsent (`FAILED`).
 - Member routes are `POST`, require a signed-in member, parse input strictly and always answer HTTP 200 with the `{ ok, ... }` envelope from `toAppResult`; they never answer 401.
 - Pass Assinafy messages through `sanitizeProviderMessage` before they reach the UI. Never store signing links or CPF/CNPJ numbers in Twenty.
-- Follow the token policy (Architecture → Token policy): member-visible reads and the creation of the `SENDING` record use `userCore`; status and sync writes, signed-file uploads, the cron and workflows run as the application. Every `assinafyDocument` field except `name` stays application-writable only.
+- Follow the token policy (Architecture → Token policy): member-visible reads and the creation of the `SENDING` record use `userCore`; status and sync writes, signed-file uploads, the cron and workflows run as the application. Every `assinafyDocument` field except `name` stays application-writable only: `isUIEditable: false` and `disabledFieldPermissionActions: ['canUpdateFieldValue']` block member and API-key updates while preserving the owning application's writes.
 - Statuses are polled; webhooks are an opt-in accelerator, never the only path (see Architecture → Webhooks). The webhook route is the app's only public route: it authenticates every delivery before any read, and a delivery only triggers a re-read of its document. Never trust or store webhook payload content, and never touch endpoints outside the app's own route.
 
 ### Documentation
@@ -73,7 +77,7 @@ The source lives in https://github.com/assinafy/twenty-crm-app and is published 
 yarn lint
 yarn check:emails
 yarn test:coverage
-yarn twenty apply        # regenerates the typed client
+yarn twenty app apply        # regenerates the typed client
 yarn typecheck
 yarn build
 yarn verify              # lint, emails, coverage, typecheck and build in one run
@@ -88,37 +92,37 @@ Report a suite that could not run (no Docker, no test instance, no sandbox crede
 ## Local Twenty servers
 
 ```bash
-yarn twenty docker:start          # development server on http://localhost:2020
-yarn twenty docker:start --test   # isolated test server on http://localhost:2021
-yarn twenty docker:status
-yarn twenty docker:stop [--test]
+yarn twenty local start          # development server on http://localhost:2020
+yarn twenty local start --test   # isolated test server on http://localhost:2021
+yarn twenty local status
+yarn twenty local stop [--test]
 ```
 
-Use 2020 for manual work and 2021 for integration tests only. `docker:start` picks the image version from `engines.twenty` unless you pass one.
+Use 2020 for manual work and 2021 for integration tests only. `local start` picks the image version from `engines.twenty` unless you pass one.
 
-Register the development server as a remote once with `yarn twenty remote:add --local`. Signing in interactively (without `--api-key`) gives the remote a user token, which `yarn twenty dev:function:exec` needs: Twenty refuses to execute logic functions for API-key remotes.
+Register the development server as a remote once with `yarn twenty auth login --url http://localhost:2020 --name dev --use`. Signing in interactively gives the remote a user token, which `yarn twenty app exec` needs: Twenty refuses to execute logic functions for API-key remotes.
 
 ## Sync the app
 
 ```bash
-yarn twenty apply
+yarn twenty app apply
 ```
 
-`apply` shows the metadata plan, applies it to the default remote and regenerates the typed API client in `node_modules/twenty-client-sdk` from the synced schema. `yarn typecheck` also passes on a fresh install, where `twenty-client-sdk` ships an untyped stub: `src/data/` never imports the generated `CoreSchema` types, declares the result, filter and order-by shapes it uses (`src/types/record-connection.ts`, `src/types/assinafy-document-filter.ts`, …) and assigns each query result to such a type instead of casting it. After `apply`, the generated client checks every query, its arguments and its result against the synced schema, so run `yarn twenty apply` before `yarn typecheck` for the full check. `yarn twenty plan` previews the changes without applying them.
+`apply` shows the metadata plan, applies it to the default remote and regenerates the typed API client in `node_modules/twenty-client-sdk` from the synced schema. `yarn typecheck` also passes on a fresh install, where `twenty-client-sdk` ships an untyped stub: `src/data/` never imports the generated `CoreSchema` types, declares the result, filter and order-by shapes it uses (`src/types/record-connection.ts`, `src/types/assinafy-document-filter.ts`, …) and assigns each query result to such a type instead of casting it. After `apply`, the generated client checks every query, its arguments and its result against the synced schema, so run `yarn twenty app apply` before `yarn typecheck` for the full check. `yarn twenty app plan` previews the changes without applying them.
 
-Use `apply` for every sync. Do not leave `yarn twenty dev` (watch mode) running while you or a tool runs other syncs, and never run two of these at the same time: `apply`, `yarn test:integration`, `yarn test:e2e`, `yarn test:production` and `yarn twenty dev:generate-client` rewrite the generated client, and `apply` and `yarn build` both rewrite `.twenty/output` (`yarn build` also typechecks against the generated client).
+Use `apply` for every sync. Do not leave `yarn twenty app dev` (watch mode) running while you or a tool runs other syncs, and never run two of these at the same time: `apply`, `yarn test:integration`, `yarn test:e2e`, `yarn test:production` and `yarn twenty app generate-client` rewrite the generated client, and `apply` and `yarn build` both rewrite `.twenty/cli/snapshots/` (`yarn build` also typechecks against the generated client).
 
 ### Changing the schema
 
-1. Add or change the field in `src/objects/assinafy-document.object.ts` (new identifiers go in `src/constants/universal-identifiers.ts`; `yarn twenty dev:add` scaffolds entities with valid UUID v4 identifiers).
-2. Run `yarn twenty apply` so the server and the generated client know the field.
+1. Add or change the field in `src/objects/assinafy-document.object.ts` (new identifiers go in `src/constants/universal-identifiers.ts`; `yarn twenty app add` scaffolds entities with valid UUID v4 identifiers).
+2. Run `yarn twenty app apply` so the server and the generated client know the field.
 3. Only then read or write the field in queries, selections and mappers (`src/data/`).
 
 If the generated client gets out of step with the source (for example after a failed sync), restore the pre-generated default client and sync again:
 
 ```bash
 rm -rf node_modules/twenty-client-sdk && yarn install
-yarn twenty apply
+yarn twenty app apply
 ```
 
 ## Scripts
@@ -127,7 +131,7 @@ yarn twenty apply
 | --- | --- |
 | `yarn lint` | oxlint with `--deny-warnings` over the repository. |
 | `yarn lint:fix` | oxlint with automatic fixes. |
-| `yarn typecheck` | `tsc --noEmit -p tsconfig.spec.json` (sources, tests and config files). Passes against the stub client of a fresh install; run it after `yarn twenty apply` to also check queries against the generated client. |
+| `yarn typecheck` | `tsc --noEmit -p tsconfig.spec.json` (sources, tests and config files). Passes against the stub client of a fresh install; run it after `yarn twenty app apply` to also check queries against the generated client. |
 | `yarn test` | Unit tests (`src/**/__tests__/**/*.test.ts`). No server or network needed. |
 | `yarn test:watch` | Unit tests in watch mode. |
 | `yarn test:coverage` | Unit tests with V8 coverage. Fails below 100% functions, 95% lines and statements, 90% branches, over `src/assinafy-client`, `src/data`, `src/services`, `src/utils`, `src/logic-functions`, `src/front-components/utils` and the `build-*` helpers in `src/fields`, `src/page-layout-tabs`, `src/command-menu-items` and `src/timeline-activity-types`. |
@@ -136,8 +140,8 @@ yarn twenty apply
 | `yarn test:e2e` | Opt-in end-to-end suite (`src/__tests__/e2e/**/*.e2e-test.ts`) inside the local Twenty test server, with Assinafy simulated on top of the sandbox; see below. |
 | `yarn test:production` | Explicitly enabled contract lifecycle suite against production Assinafy and local Twenty on port 2021, using one temporary unsent PDF; see below. |
 | `yarn check:emails` | Fails when a tracked file contains an email address outside reserved domains such as `example.invalid`. |
-| `yarn build` | `twenty dev:build`: builds the app into `.twenty/output` (emptied first) and typechecks it with `tsconfig.json`. It does not generate the API client; run `yarn twenty apply` first. |
-| `yarn verify` | `lint`, `check:emails`, `test:coverage`, `typecheck` and `build`, in that order. Run after `yarn twenty apply` or `yarn test:integration`, which generate the typed client. |
+| `yarn build` | `twenty app build`: builds the app into `.twenty/cli/snapshots/` (emptied first) and typechecks it with `tsconfig.json`. It does not generate the API client; run `yarn twenty app apply` first. |
+| `yarn verify` | `lint`, `check:emails`, `test:coverage`, `typecheck` and `build`, in that order. Run after `yarn twenty app apply` or `yarn test:integration`, which generate the typed client. |
 | `yarn twenty <command>` | The Twenty CLI; `yarn twenty --help` lists its commands. |
 
 ### Unit tests
@@ -149,13 +153,13 @@ Tests live in `__tests__` folders next to the code they cover. The setup file `s
 ### Integration tests
 
 ```bash
-yarn twenty docker:start --test
-TWENTY_USER_ACCESS_TOKEN=<seeded admin access token> yarn test:integration
+yarn twenty local start --test
+TWENTY_API_KEY=<seeded admin access token> yarn test:integration
 ```
 
-The suites live in `src/__tests__/integration/`. `vitest.config.mts` targets `TWENTY_API_URL` (default `http://localhost:2021`) with `TWENTY_API_KEY` (default: `DEV_API_KEY` from `twenty-sdk/cli`, the seeded workspace API key of the local test image). Calls made as a member need `TWENTY_USER_ACCESS_TOKEN`, a workspace member's access token. For local runs, use the seeded admin's access token of the local test container: Twenty publishes it as the `api-key` output of its `spawn-twenty-app-dev-test` action (`.github/actions/spawn-twenty-app-dev-test/action.yml` in `twentyhq/twenty`). When `TWENTY_API_KEY` is itself a member access token, as in CI, it also serves as the member token. Checks of calls made without a member (routes answer `FORBIDDEN`, the key cannot execute logic functions) use `TWENTY_WORKSPACE_API_KEY`, a workspace API key (default: `DEV_API_KEY`); they are skipped only when neither `TWENTY_WORKSPACE_API_KEY` nor `TWENTY_API_KEY` is an API key. Set `ASSINAFY_EGRESS=0` to skip the tests that make real HTTPS calls from Twenty's function runtime to Assinafy with an invalid key.
+The suites live in `src/__tests__/integration/`. `vitest.config.mts` targets `TWENTY_API_URL` (default `http://localhost:2021`) with `TWENTY_API_KEY` (required; the CLI no longer exports a seeded key). Calls made as a member need `TWENTY_USER_ACCESS_TOKEN`, a workspace member's access token. For local runs, use the seeded admin's access token of the local test container: Twenty publishes it as the `api-key` output of its `spawn-twenty-app-dev-test` action (`.github/actions/spawn-twenty-app-dev-test/action.yml` in `twentyhq/twenty`). When `TWENTY_API_KEY` is itself a member access token, as in CI, it also serves as the member token. Checks of calls made without a member (routes answer `FORBIDDEN`, the key cannot execute logic functions) use `TWENTY_WORKSPACE_API_KEY`, a workspace API key. When it is absent, setup creates a temporary key with the seeded member and a fully privileged API-key role, passes it only to test workers, and revokes it at teardown. It expires after one hour if cleanup fails. Permission checks are mandatory; missing credentials or a suitable role fail setup. Set `ASSINAFY_EGRESS=0` to skip the tests that make real HTTPS calls from Twenty's function runtime to Assinafy with an invalid key.
 
-The global setup checks `/healthz`, writes the remote into `~/.twenty/config.test.json` (your own remotes are untouched), uninstalls any previous copy, syncs the app with `apply`, and uninstalls it after the run. Tests run one file at a time. The suite refuses a `NODE_ENV` other than `test` (the CLI would then use `~/.twenty/config.json`), and any `TWENTY_API_URL` other than `http://localhost:2021` unless `TWENTY_INTEGRATION_ALLOW_REMOTE=1` is set; never point it at the development server or a production workspace.
+The global setup checks `/healthz`, passes the explicit `TWENTY_API_URL` and `TWENTY_API_KEY` environment to the local CLI, uninstalls any previous copy, syncs the app with `app apply`, and uninstalls it after the run. Tests run one file at a time. The suite refuses a `NODE_ENV` other than `test` (test mutations are disabled outside the runner), and any `TWENTY_API_URL` other than `http://localhost:2021` unless `TWENTY_INTEGRATION_ALLOW_REMOTE=1` is set; never point it at the development server or a production workspace.
 
 ### Live tests
 
@@ -169,7 +173,7 @@ The suite lives in `src/__tests__/live/` and calls `https://sandbox.assinafy.com
 ### Isolated production contract tests
 
 ```bash
-yarn twenty docker:start --test
+yarn twenty local start --test
 ASSINAFY_PRODUCTION_TESTS=1 TWENTY_USER_ACCESS_TOKEN=<seeded admin access token> yarn test:production
 ```
 
@@ -180,7 +184,7 @@ The suite uploads one synthetic PDF without assigning signers. It checks product
 ### End-to-end suite
 
 ```bash
-yarn twenty docker:start --test
+yarn twenty local start --test
 cp .env.example .env   # fill in the sandbox values; .env is git-ignored
 TWENTY_USER_ACCESS_TOKEN=<seeded admin access token> yarn test:e2e
 ```
@@ -212,34 +216,34 @@ What it changes on the test server, and how teardown restores it:
 - Every sandbox document the run touched that is still open is deleted in the sandbox.
 - Twenty's seeded demo workspace runs a workflow that creates a company named after each new person's email domain, so every fixture set leaves one `assinafy-<run id>.invalid` company. Teardown deletes those companies last; the integration suite's teardown does the same.
 
-The suite refuses any server other than `http://localhost:2021`, any container whose `SERVER_URL` differs, and a `NODE_ENV` other than `test` (the CLI would then sync to the default remote of `~/.twenty/config.json`). Like `yarn test:integration`, it writes `~/.twenty/config.test.json` and regenerates the typed client, so never run it alongside another sync.
+The suite refuses any server other than `http://localhost:2021`, any container whose `SERVER_URL` differs, and a `NODE_ENV` other than `test` (test mutations are disabled outside the runner). Like `yarn test:integration`, it passes the explicit test environment to the CLI and regenerates the typed client, so never run it alongside another sync.
 
 Set `E2E_KEEP_INSTALLED=1` to leave the simulation build installed, with its Assinafy API key variable set to the simulator's key, and the simulator running after the run, for a manual check in the UI: sign in at `http://localhost:2021`, and the app's Assinafy calls go through the simulator to the sandbox. OAuth Add connection does not work from a browser, because it redirects to the simulator's port, which is not published. The `OUTBOUND_HTTP_ALLOWED_INTERNAL_HOSTS` config variable also stays set; the registration's OAuth client does not, because the uninstall scenario resets it and nothing sets it again. The next `yarn test:e2e` run without the variable starts from scratch and restores the server in its teardown.
 
 ## User interface language
 
 - Assinafy's only market is Brazil, so every user-facing string is written in Brazilian Portuguese directly as the source text: front components and their messages, object, field and select option labels, the view, tab, widget, command, navigation item and timeline labels, workflow action labels, variable labels and descriptions, and health check banners. There is no translation catalog; front-component strings still go through `t`, `msg` or `Trans`, with the pt-BR text as the message.
-- `locales/en.json` is intentionally `{}`, so every Twenty locale shows the pt-BR source text. Do not add catalog entries, and do not run `yarn twenty dev:translations-extract`: it would regenerate the catalogs from the source strings.
+- `locales/en.json` is intentionally `{}`, so every Twenty locale shows the pt-BR source text. Do not add catalog entries, and do not run `yarn twenty app translations extract`: it would regenerate the catalogs from the source strings.
 - Code identifiers, API values (select option values such as `PENDING_SIGNATURE`, object and field API names such as `assinafyDocument` and `signerCount`), error codes, `lastError` codes, code comments and log lines (`console.warn`, `console.error`) stay in English.
 - Because the status option labels are pt-BR source text, native lists, filters and the app's panels show the same status names.
 
 ## Running logic functions by hand
 
 ```bash
-yarn twenty dev:function:exec -n sync-assinafy-documents
-yarn twenty dev:function:exec -n get-assinafy-document-status -p '{"documentRecordId":"<assinafyDocument id>"}'
-yarn twenty dev:function:exec --uninstall
-yarn twenty dev:function:logs -n sync-assinafy-documents
+yarn twenty app exec --name sync-assinafy-documents
+yarn twenty app exec --name get-assinafy-document-status --payload '{"documentRecordId":"<assinafyDocument id>"}'
+yarn twenty app exec --uninstall-hook
+yarn twenty app logs --name sync-assinafy-documents
 ```
 
-These need a remote added by signing in; Twenty refuses API-key remotes. Lifecycle hooks do not run during `apply`. `--uninstall` runs the uninstall hook as the signed-in member, and the uninstall and disconnect hooks ignore any run a member starts (see Credential resolution), so use a real uninstall or a Settings disconnect to exercise revocation.
+These need a remote added by signing in; Twenty refuses API-key remotes. Lifecycle hooks do not run during `apply`. `--uninstall-hook` runs the uninstall hook as the signed-in member, and the uninstall and disconnect hooks ignore any run a member starts (see Credential resolution), so use a real uninstall or a Settings disconnect to exercise revocation.
 
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pushes to `main`, on pull requests, weekly (Monday 06:00 UTC) and when the publish workflow calls it (`workflow_call`). Every job installs with `yarn install --immutable`, pins its actions to a commit SHA, gets a read-only `GITHUB_TOKEN` and no OIDC token, and does not keep the token in the checkout. A newer push cancels a pull request's running CI; runs on `main` and release runs always finish. Its two jobs run in parallel:
 
 1. **Lint, unit tests and build** (no Twenty instance, so it reports in a few minutes): `yarn lint`, `yarn check:emails`, `yarn test:coverage`, then `yarn typecheck` and `yarn build` against the uninstalled Twenty client.
-2. **Integration tests**: spawns a Twenty test instance with `twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test` (image `v2.42.6`; the weekly run uses `latest` to catch platform changes early), runs `yarn test:integration` against it, which also syncs the app and generates the typed client, then runs `yarn typecheck` again against the generated client.
+2. **Integration tests**: spawns a Twenty test instance with `twentyhq/twenty/.github/actions/spawn-twenty-app-dev-test` (image `v2.58.0`; the weekly run uses `latest` to catch platform changes early), runs `yarn test:integration` against it, which also syncs the app and generates the typed client, then runs `yarn typecheck` again against the generated client.
 
 No job uses Assinafy credentials: the live, end-to-end and isolated production suites stay local. `.github/dependabot.yml` opens weekly pull requests for the pinned actions and the npm dependencies.
 
@@ -251,7 +255,7 @@ The app is published to npm as `@assinafy/twenty-app` and listed in the Twenty m
 2. Add the release to CHANGELOG.md.
 3. Run `yarn test:integration` against a test instance (it syncs the app and generates the typed client), then `yarn verify`.
 4. Tag the commit `vX.Y.Z` (matching `package.json`) and push the tag.
-5. `.github/workflows/publish.yml` runs the full CI suite (it calls `ci.yml`), then its `publish` job, the only job with an OIDC token (`id-token: write`), runs in the `release` environment. It fails unless the run is for a tag named `v<package.json version>` on a commit of `main`, installs without the dependency cache and runs `yarn twenty app:publish`, which builds the package and runs `npm publish --access public --provenance` on the output. Releases never run in parallel. The workflow can also be started by hand from the Actions tab, on the release tag; a run on a branch fails the tag check.
+5. `.github/workflows/publish.yml` runs the full CI suite (it calls `ci.yml`), then its `publish` job, the only job with an OIDC token (`id-token: write`), runs in the `release` environment. It fails unless the run is for a tag named `v<package.json version>` on a commit of `main`, installs without the dependency cache and runs `yarn twenty app publish`, which builds the package and runs `npm publish --access public --provenance` on the output. Releases never run in parallel. The workflow can also be started by hand from the Actions tab, on the release tag; a run on a branch fails the tag check.
 
 One-time setup:
 
@@ -261,14 +265,14 @@ One-time setup:
 After the first publish:
 
 - **Claim the app:** in the owner workspace, open Settings → Applications → Developer, enter `@assinafy/twenty-app` under Claim an application, select Look up, then Claim with GitHub (signed in as an owner of the GitHub organization that owns the repository).
-- **Catalog sync:** Twenty imports npm packages into the marketplace catalog hourly; `yarn twenty dev:catalog-sync` (or `-r <remote>`) triggers it immediately.
+- **Catalog sync:** Twenty imports npm packages into the marketplace catalog hourly.
 - **Server variables on Twenty Cloud:** open the app under My apps, go to the Config tab and fill in `ASSINAFY_CLIENT_ID` and `ASSINAFY_CLIENT_SECRET` from an Assinafy OAuth application whose redirect URI is the Cloud server's `<SERVER_URL>/auth/apps/callback`.
 
 ### Release checklist
 
 - [ ] Version bumped, CHANGELOG.md updated, tag matches the version.
 - [ ] `yarn test:integration` and then `yarn verify` pass.
-- [ ] Every file referenced by `src/application-config.ts` exists in `public/` (a unit test checks this). The manifest lists no `galleryImages`, so twenty-sdk generates the marketplace cover from `public/logo.svg`; screenshots, when added, go in `public/gallery/` and in `galleryImages`, at 8:5, with synthetic `@example.invalid` data only.
+- [ ] Every file referenced by `src/application-config.ts` exists in `public/` (a unit test checks this). The manifest lists no `galleryImages`, so cover generation uses `public/logo.svg` when the optional image tooling is installed; screenshots, when added, go in `public/gallery/` and in `galleryImages`, at 8:5, with synthetic `@example.invalid` data only.
 - [ ] `engines.twenty` names the `.0` release of the oldest Twenty minor the app is tested on. Twenty compares it with the workspace's upgraded version, which stays at `.0` across patch releases, so `>=2.42.6` would refuse a 2.42.6 server.
 - [ ] README.md matches the shipped behavior; it is the marketplace About page, so it stays plain markdown (no images, raw HTML or badges).
 - [ ] The Assinafy OAuth application is verified by Assinafy (unverified applications show a warning and are limited to 25 Assinafy workspaces), registered as Confidential with all seven scopes and the exact redirect URI of every Twenty server that uses it.
@@ -329,8 +333,10 @@ The context (`/s/assinafy/context` and `get-signature-context-tool`) includes `r
 
 ### Known platform limitations
 
-- Twenty 2.42 refreshes OAuth tokens without a lock, and Assinafy ends a grant when a refresh token is reused. Two concurrent calls on a connection whose token is older than 55 minutes can therefore end the connection; the member then reconnects.
-- Twenty 2.42.6 stores page layout widgets that reach an open browser through its live metadata updates without the configuration `__typename`, and its widget renderer shows "No Data" for a `FRONT_COMPONENT` widget whose configuration is not typed `FrontComponentConfiguration`. A browser that had Twenty open while the app was installed or reinstalled therefore shows "No Data" in the app's widgets until its site data is cleared; a fresh browser session renders them. Nothing in the app can change this.
+The first two issues were observed on Twenty 2.42; recheck them when qualifying a newer host release.
+
+- Twenty 2.42 refreshed OAuth tokens without a lock, and Assinafy ends a grant when a refresh token is reused. Two concurrent calls on a connection whose token is older than 55 minutes can therefore end the connection; the member then reconnects.
+- Twenty 2.42.6 stored page layout widgets that reach an open browser through its live metadata updates without the configuration `__typename`, and its widget renderer shows "No Data" for a `FRONT_COMPONENT` widget whose configuration is not typed `FrontComponentConfiguration`. A browser that had Twenty open while the app was installed or reinstalled therefore shows "No Data" in the app's widgets until its site data is cleared; a fresh browser session renders them. Nothing in the app can change this.
 - Right after an uninstall, record pages that were open can throw "Cannot resolve morph junction metadata" in Twenty's front end until they are reloaded.
 - A workflow started by a database event, a cron or a webhook runs its code steps without a member, like the real lifecycle hooks, so a code step that targets the disconnect or uninstall hook's function passes the member-run guard: the app cannot tell it from Twenty's own run. A role with the Workflows permission can revoke Assinafy access tokens this way; no token, signer data or billable call is exposed, and members reconnect. The guard stays because it still stops `executeOneLogicFunction` and manually started runs.
 - Removing a workspace member (or the member deleting their account) runs Twenty's `ConnectedAccountOwnershipTransferService`: every connection the member owned, workspace-visible ones included, is archived with its tokens nulled. Twenty then calls only its own revoke, which does nothing because the provider declares no `revokeEndpoint`, and never runs the disconnect hook. The grant stays active in Assinafy until it lapses after 30 days without a refresh, and the connection disappears from the listings without being flagged (the detector forgets it as gone). The app cannot hook member removal; README.md tells admins to remove the member's connections first.

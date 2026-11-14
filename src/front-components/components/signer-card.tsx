@@ -1,7 +1,7 @@
 import { type Dispatch, useId } from 'react';
 import { msg, useTranslate } from 'twenty-sdk/front-component';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { MAX_NAME_LENGTH } from 'src/constants/limits';
 import { VERIFICATION_METHODS } from 'src/constants/signer-methods';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
@@ -45,9 +45,9 @@ export const SignerCard = ({ signer, index, roleName, contacts, removable, disab
 
   return (
     <div role="group" aria-labelledby={titleId} style={FIELD_STYLES.card}>
-      <p id={titleId} style={FIELD_STYLES.strong}>
+      <h3 id={titleId} style={FIELD_STYLES.strong}>
         {roleName ?? t('Signatário {number}', { number: index + 1 })}
-      </p>
+      </h3>
       {contacts.length > 0 ? (
         <SelectInput
           label={t('Preencher com um contato')}

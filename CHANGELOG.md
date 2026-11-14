@@ -5,6 +5,19 @@ Todas as alterações relevantes deste projeto são documentadas neste arquivo.
 O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e este projeto adota o
 [Versionamento Semântico](https://semver.org/lang/pt-BR/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-11-13
+
+### Alterado
+
+- Visual v2 nos painéis de envio, assinaturas, revisão de custo e contratos: Inter, cores Assinafy,
+  cartões claros, botões em pílula e controles adaptados a painéis estreitos.
+- Requisito mínimo de Twenty 2.58, com SDKs e CLI 2.58.0 e `@assinafy/sdk` 3.0.2.
+- Ferramentas de desenvolvimento atualizadas para Node.js 26.13.1 LTS e versões estáveis compatíveis.
+
+### Corrigido
+
+- Estimativas de PDFs e modelos preservam a ordem de assinatura, inclusive uma etapa por signatário com certificado digital.
+
 ## [1.5.1] - 2026-11-11
 
 ### Corrigido
@@ -170,6 +183,7 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/), e
   criada.
 - Interface em português do Brasil.
 
+[1.6.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.6.0
 [1.4.1]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.4.1
 [1.4.0]: https://github.com/assinafy/twenty-crm-app/releases/tag/v1.4.0
 [1.3.1]: https://github.com/assinafy/twenty-crm-app/compare/v1.3.0...v1.3.1

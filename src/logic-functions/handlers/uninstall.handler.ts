@@ -29,9 +29,9 @@ export const uninstallHandler = async (
   // listAssinafyConnections already logs its failure.
   const connections = await listAssinafyConnections({}).catch(() => []);
 
-  const apiKey = readApiKeyCredential();
-  const credentials = [...(apiKey ? [apiKey] : []), ...connections.map(toOAuthCredential)];
   try {
+    const apiKey = readApiKeyCredential();
+    const credentials = [...(apiKey ? [apiKey] : []), ...connections.map(toOAuthCredential)];
     await reconcileWebhookEndpoints(await resolveBackgroundAccounts('uninstall', credentials, createClient), null);
   } catch (error) {
     console.warn('[assinafy] uninstall: webhook endpoints not removed', { code: toAppError(error, 'mutation').code });

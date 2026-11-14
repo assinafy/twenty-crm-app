@@ -23,7 +23,7 @@ Envie PDFs e modelos da Assinafy para assinatura a partir de Pessoas, Empresas e
 
 ## Requisitos
 
-- Twenty 2.42 ou posterior.
+- Twenty 2.58 ou posterior.
 - Conta Assinafy com plano ativo e acesso aos recursos usados. WhatsApp, certificado digital, biometria, OAuth e contratos dependem do plano.
 - Aplicação OAuth confidencial registrada para o servidor Twenty ou uma chave de API da Assinafy.
 
@@ -95,7 +95,7 @@ A ação de workflow aceita um PDF ou modelo, pessoas do CRM, nome, mensagem, pr
 - São considerados os 50 anexos e os 50 Documentos Assinafy mais recentes do registro, até 10 contatos relacionados e os primeiros 200 modelos prontos do workspace.
 - Um signatário somente com WhatsApp, sem e-mail, pode gerar um novo perfil na Assinafy a cada envio. Alterar o WhatsApp de um perfil existente pode invalidar convites pendentes enviados ao número antigo.
 - Sem webhooks, as mudanças aparecem na próxima consulta de 15 minutos, ao abrir o documento ou ao selecionar Atualizar. A expiração depende da consulta periódica.
-- No Twenty 2.42, renovações OAuth simultâneas podem reutilizar o mesmo token rotativo e encerrar a conexão; reconecte pela aba Geral.
+- Se a conexão for encerrada durante a renovação OAuth, reconecte pela aba Geral.
 - Depois de instalar ou reinstalar, uma sessão antiga do navegador pode mostrar No Data nos widgets. Limpe os dados do site do Twenty e entre novamente.
 
 ## Solução de problemas

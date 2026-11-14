@@ -1,8 +1,8 @@
 import { type Dispatch, useState } from 'react';
 import { useTranslate } from 'twenty-sdk/front-component';
 import { Callout } from 'twenty-ui/components';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { CheckboxInput } from 'src/front-components/components/checkbox-input';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
@@ -61,7 +61,7 @@ export const ReviewStep = ({ state, dispatch, onSend, onPrepareAgain }: ReviewSt
       </div>
       <div style={FIELD_STYLES.card}>
         <p style={FIELD_STYLES.label}>{t('Signatários')}</p>
-        <ol style={{ ...FIELD_STYLES.stack, margin: 0, paddingLeft: 'var(--t-spacing-4)' }}>
+        <ol style={{ ...FIELD_STYLES.stack, margin: 0, paddingLeft: 20 }}>
           {input.signers.map((signer, index) => (
             <li key={signer.roleId ?? index}>
               <p style={FIELD_STYLES.text}>{signer.name}</p>
@@ -77,8 +77,8 @@ export const ReviewStep = ({ state, dispatch, onSend, onPrepareAgain }: ReviewSt
         </ol>
         {input.sequential ? <p style={FIELD_STYLES.muted}>{t('Os signatários assinam um por vez, nesta ordem.')}</p> : null}
       </div>
-      <div style={FIELD_STYLES.card}>
-        <p style={FIELD_STYLES.label}>{t('Custo')}</p>
+      <div style={FIELD_STYLES.panel}>
+        <h3 style={FIELD_STYLES.strong}>{t('Custo')}</h3>
         <p style={FIELD_STYLES.strong}>
           {t(lines.total.message, lines.total.values)}
         </p>
@@ -87,7 +87,7 @@ export const ReviewStep = ({ state, dispatch, onSend, onPrepareAgain }: ReviewSt
         {lines.blocking ? (
           <div role="alert">
             <Callout
-              variant="error"
+              status="error"
               title={t('Não é possível enviar')}
               description={t(lines.blocking.message, lines.blocking.values)}
               fullWidth
@@ -106,7 +106,7 @@ export const ReviewStep = ({ state, dispatch, onSend, onPrepareAgain }: ReviewSt
         <div style={FIELD_STYLES.card}>
           <div role="alert">
             <Callout
-              variant="warning"
+              status="warning"
               title={t('Envios recentes deste registro')}
               description={t(
                 'Se um envio anterior mostrou erro ou foi interrompido, ele pode ter chegado aos signatários. Antes de enviar outro, confira esses documentos na aba Assinaturas do registro ou na lista Documentos Assinafy.',
@@ -157,6 +157,7 @@ export const ReviewStep = ({ state, dispatch, onSend, onPrepareAgain }: ReviewSt
           {t('Revisar estimativa novamente')}
         </Button>
         <Button
+          variant="solid"
           color="accent"
           loading={sending}
           disabled={

@@ -111,6 +111,22 @@ describe('uninstallHandler', () => {
     });
   });
 
+  it('still revokes available tokens when a non-OAuth connection prevents webhook cleanup', async () => {
+    listConnections.mockResolvedValue([
+      { ...buildAppConnection(), providerType: 'custom', accessToken: null },
+      buildAppConnection({ accessToken: 'token-1' }),
+    ]);
+    revoke.mockResolvedValue(undefined);
+
+    await expect(uninstallHandler()).resolves.toBeUndefined();
+
+    expect(revoke).toHaveBeenCalledTimes(2);
+    await expect(revoke.mock.calls[1]![1]()).resolves.toBe('token-1');
+    expect(console.warn).toHaveBeenCalledWith('[assinafy] uninstall: webhook endpoints not removed', {
+      code: 'PROVIDER_UNAVAILABLE',
+    });
+  });
+
   it('never throws when the connections cannot be listed', async () => {
     listConnections.mockRejectedValue(new AppFailure('PROVIDER_UNAVAILABLE', 'Down'));
 

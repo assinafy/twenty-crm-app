@@ -1,6 +1,7 @@
 import { useTranslate } from 'twenty-sdk/front-component';
 import { Callout } from 'twenty-ui/components';
 
+import { AppButton } from 'src/front-components/components/app-button';
 import { getErrorMessage } from 'src/front-components/utils/get-error-message.util';
 import { getErrorTitle } from 'src/front-components/utils/get-error-title.util';
 import { type AppError } from 'src/types/app-error';
@@ -17,12 +18,11 @@ export const ErrorCallout = ({ error, action }: ErrorCalloutProps) => {
 
   return (
     <div role="alert">
-      {/* The title stays on one line; the message goes in the description, which wraps. */}
       <Callout
-        variant={variant}
+        status={variant}
         title={t(title)}
         description={t(message, values)}
-        action={action}
+        action={action ? <AppButton variant="outline" onClick={action.onClick}>{action.label}</AppButton> : undefined}
         fullWidth
       />
     </div>

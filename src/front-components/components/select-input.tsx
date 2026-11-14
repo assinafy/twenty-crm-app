@@ -26,7 +26,7 @@ export const SelectInput = ({ label, value, options, onChange, placeholder, disa
         id={id}
         value={value}
         disabled={disabled}
-        style={FIELD_STYLES.control}
+        style={{ ...FIELD_STYLES.control, ...(disabled ? FIELD_STYLES.disabled : {}) }}
         onChange={(event) => onChange(readEventValue(event))}
       >
         {placeholder === undefined ? null : <option value="">{placeholder}</option>}

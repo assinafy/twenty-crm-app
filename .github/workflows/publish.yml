@@ -71,4 +71,4 @@ jobs:
 
       # Builds the app and runs `npm publish --access public --provenance` on the output.
       - name: Publish to npm
-        run: yarn twenty app:publish
+        run: yarn twenty app publish

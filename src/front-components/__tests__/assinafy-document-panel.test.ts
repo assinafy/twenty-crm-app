@@ -13,7 +13,7 @@ vi.mock('twenty-sdk/front-component', () => ({
 }));
 vi.mock('twenty-ui/primitives/data-display', () => ({ Tag: () => null }));
 vi.mock('twenty-ui/primitives/feedback', () => ({ ProgressBar: () => null }));
-vi.mock('twenty-ui/primitives/input', () => ({ Button: () => null }));
+vi.mock('src/front-components/components/app-button', () => ({ AppButton: () => null }));
 vi.mock('src/front-components/components/error-callout', () => ({ ErrorCallout: () => null }));
 vi.mock('src/front-components/components/loading-status', () => ({ LoadingStatus: () => null }));
 vi.mock('src/front-components/components/signed-downloads', () => ({ SignedDownloads: () => null }));

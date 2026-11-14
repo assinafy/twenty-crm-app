@@ -1,8 +1,8 @@
 import { useEffect, useReducer, useRef, useState } from 'react';
 import { enqueueSnackbar, msg, useTranslate } from 'twenty-sdk/front-component';
 import { Callout } from 'twenty-ui/components';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { DocumentStep } from 'src/front-components/components/document-step';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
@@ -88,15 +88,13 @@ const SendFlowSteps = ({
     void openAssinafyDocument(result.documentRecordId);
   }, [state, t, onSent]);
 
-  const exclusive = (task: () => Promise<void>) => () => runExclusive(task);
-
   const continueToSigners = () => {
     const error = findDraftError(state, 'DOCUMENT', new Date());
 
     dispatch(error ? { type: 'SHOW_ERROR', error } : { type: 'GO_TO', step: 'SIGNERS' });
   };
 
-  const prepare = exclusive(async () => {
+  const prepare = () => runExclusive(async () => {
     const error = findDraftError(state, 'DOCUMENT', new Date()) ?? findDraftError(state, 'SIGNERS', new Date());
 
     if (error) {
@@ -119,7 +117,7 @@ const SendFlowSteps = ({
     );
   });
 
-  const send = exclusive(async () => {
+  const send = () => runExclusive(async () => {
     const body = buildSendRequest(state, createRequestId);
 
     if (body === null) {
@@ -141,7 +139,7 @@ const SendFlowSteps = ({
       <div style={FIELD_STYLES.stack}>
         {state.step === 'DONE' ? (
           <Callout
-            variant="success"
+            status="success"
             title={t('Documento enviado para assinatura.')}
             description={t('A Assinafy recebeu a solicitação. Acompanhe as assinaturas no documento.')}
             fullWidth
@@ -164,12 +162,16 @@ const SendFlowSteps = ({
 
   return (
     <div style={FIELD_STYLES.stack}>
+      <div style={FIELD_STYLES.panel}>
+        <h2 style={FIELD_STYLES.title}>{t('Enviar para assinatura')}</h2>
+        <p style={FIELD_STYLES.text}>{context.record.name}</p>
+      </div>
       <ol aria-label={t('Etapas do envio')} style={{ ...FIELD_STYLES.row, listStyle: 'none', margin: 0, padding: 0 }}>
         {STEPS.map(({ step, label }, index) => (
           <li
             key={step}
             aria-current={step === current ? 'step' : undefined}
-            style={step === current ? FIELD_STYLES.strong : FIELD_STYLES.muted}
+            style={{ ...FIELD_STYLES.step, ...(step === current ? FIELD_STYLES.activeStep : FIELD_STYLES.inactiveStep) }}
           >
             {`${index + 1}. ${t(label)}`}
           </li>

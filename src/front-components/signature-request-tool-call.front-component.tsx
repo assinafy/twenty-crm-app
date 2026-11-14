@@ -22,7 +22,7 @@ const SignatureRequestToolCall = () => {
     return (
       <div role="alert" style={FIELD_STYLES.container}>
         <Callout
-          variant="error"
+          status="error"
           title={t('Não foi possível continuar')}
           description={t('O assistente não conseguiu preparar esta solicitação de assinatura.')}
           fullWidth

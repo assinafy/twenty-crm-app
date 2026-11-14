@@ -1,8 +1,8 @@
 import { type Dispatch } from 'react';
 import { useTranslate } from 'twenty-sdk/front-component';
 import { Callout } from 'twenty-ui/components';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { MAX_EDITOR_FIELD_VALUE_LENGTH, MAX_MESSAGE_LENGTH, MAX_NAME_LENGTH } from 'src/constants/limits';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
@@ -46,7 +46,7 @@ export const DocumentStep = ({ state, dispatch, onContinue }: DocumentStepProps)
           />
         ) : (
           <Callout
-            variant="info"
+            status="info"
             title={t('Este registro não tem PDF anexado.')}
             description={t('Anexe um PDF de até 25 MB na aba Arquivos e abra este painel novamente.')}
             fullWidth
@@ -66,7 +66,7 @@ export const DocumentStep = ({ state, dispatch, onContinue }: DocumentStepProps)
         />
       ) : (
         <Callout
-          variant="info"
+          status="info"
           title={t('Nenhum modelo pronto neste workspace da Assinafy.')}
           description={t('Prepare os modelos na Assinafy apenas com papéis de signatário e de editor.')}
           fullWidth
@@ -108,7 +108,7 @@ export const DocumentStep = ({ state, dispatch, onContinue }: DocumentStepProps)
       />
       {state.error ? <ErrorCallout error={state.error} /> : null}
       <div style={FIELD_STYLES.row}>
-        <Button color="accent" onClick={onContinue}>
+        <Button variant="solid" color="accent" onClick={onContinue}>
           {t('Continuar para signatários')}
         </Button>
       </div>

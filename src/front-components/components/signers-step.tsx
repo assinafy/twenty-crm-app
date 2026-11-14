@@ -1,8 +1,8 @@
 import { type Dispatch } from 'react';
 import { useTranslate } from 'twenty-sdk/front-component';
 import { Callout } from 'twenty-ui/components';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { MAX_SIGNERS } from 'src/constants/limits';
 import { CheckboxInput } from 'src/front-components/components/checkbox-input';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
@@ -65,7 +65,7 @@ export const SignersStep = ({ state, dispatch, onPrepare }: SignersStepProps) =>
       />
       {draft.signers.some((signer) => signer.notificationMethod === 'Whatsapp') ? (
         <Callout
-          variant="warning"
+          status="warning"
           title={t('Sobre convites por WhatsApp')}
           description={t(
             'Se um signatário já estiver cadastrado na Assinafy com outro número, o número será atualizado e os convites pendentes dele em outros documentos precisarão ser reenviados pela Assinafy.',
@@ -85,7 +85,7 @@ export const SignersStep = ({ state, dispatch, onPrepare }: SignersStepProps) =>
         >
           {t('Voltar ao documento')}
         </Button>
-        <Button color="accent" loading={state.preparing} disabled={state.preparing} onClick={onPrepare}>
+        <Button variant="solid" color="accent" loading={state.preparing} disabled={state.preparing} onClick={onPrepare}>
           {t('Preparar e revisar')}
         </Button>
       </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import { openCommandConfirmationModal, useTranslate } from 'twenty-sdk/front-component';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
 import { CheckboxInput } from 'src/front-components/components/checkbox-input';
 import { ErrorCallout } from 'src/front-components/components/error-callout';
 import { FIELD_STYLES } from 'src/front-components/components/field-styles';
@@ -75,7 +75,7 @@ const ContractEditor = ({
       {error ? <ErrorCallout error={error} /> : null}
       {editable ? (
         <div style={FIELD_STYLES.row}>
-          <Button color="accent" disabled={disabled} onClick={submit}>{t('Salvar condições do contrato')}</Button>
+          <Button variant="solid" color="accent" disabled={disabled} onClick={submit}>{t('Salvar condições do contrato')}</Button>
         </div>
       ) : null}
     </div>
@@ -132,7 +132,7 @@ const ContractContent = ({ documentRecordId, disabled, runTask }: ContractPanelP
 
   return (
     <div style={FIELD_STYLES.card}>
-      <p style={FIELD_STYLES.strong}>{t('Gestão do contrato')}</p>
+      <h2 style={FIELD_STYLES.title}>{t('Gestão do contrato')}</h2>
       <p style={FIELD_STYLES.muted}>{t('As condições ficam na Assinafy. Alterá-las aqui não modifica o PDF nem solicita novas assinaturas. Os avisos de vigência são gerenciados pela Assinafy.')}</p>
       {state.busy ? <LoadingStatus /> : null}
       {state.error ? <ErrorCallout error={state.error} /> : null}

@@ -57,7 +57,7 @@ vi.mock('twenty-sdk/front-component', () => ({
   useSelectedRecordIds: () => runtime.selected,
   useTranslate: () => ({ t: (message: string) => message }),
 }));
-vi.mock('twenty-ui/primitives/input', () => ({ Button: vi.fn<() => null>() }));
+vi.mock('src/front-components/components/app-button', () => ({ AppButton: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/error-callout', () => ({ ErrorCallout: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/loading-status', () => ({ LoadingStatus: vi.fn<() => null>() }));
 vi.mock('src/front-components/components/signed-downloads', () => ({ SignedDownloads: vi.fn<() => null>() }));
@@ -67,7 +67,7 @@ vi.mock('src/data/find-record-documents', () => ({
   findRecordDocuments: vi.fn<typeof findRecordDocuments>(),
 }));
 
-import { Button } from 'twenty-ui/primitives/input';
+import { AppButton as Button } from 'src/front-components/components/app-button';
 
 import { SendFlow } from 'src/front-components/components/send-flow';
 import { StatusTag } from 'src/front-components/components/status-tag';

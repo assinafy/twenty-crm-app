@@ -10,8 +10,9 @@ import {
 } from 'twenty-sdk/front-component';
 import { Tag } from 'twenty-ui/primitives/data-display';
 import { ProgressBar } from 'twenty-ui/primitives/feedback';
-import { Button } from 'twenty-ui/primitives/input';
 
+import { AppButton as Button } from 'src/front-components/components/app-button';
+import { BRAND } from 'src/constants/brand';
 import { DOCUMENT_PANEL_FRONT_COMPONENT_UNIVERSAL_IDENTIFIER } from 'src/constants/universal-identifiers';
 import { findAssinafyDocument } from 'src/data/find-assinafy-document';
 import { ContractPanel } from 'src/front-components/components/contract-panel';
@@ -242,31 +243,34 @@ const DocumentPanel = ({ recordId }: { recordId: string }) => {
 
   return (
     <div style={FIELD_STYLES.container}>
-      <div style={FIELD_STYLES.row}>
-        <StatusTag status={record.status} />
-        <span style={FIELD_STYLES.muted}>
-          {t('Assinaturas: {signed} de {total}', { signed: signedCount, total: signerCount })}
-        </span>
+      <div style={FIELD_STYLES.panel}>
+        <h2 style={FIELD_STYLES.title}>{record.name ?? t('Documento sem nome')}</h2>
+        <div style={FIELD_STYLES.row}>
+          <StatusTag status={record.status} />
+          <span style={FIELD_STYLES.muted}>
+            {t('Assinaturas: {signed} de {total}', { signed: signedCount, total: signerCount })}
+          </span>
+        </div>
+        {signerCount > 0 ? (
+          <ProgressBar
+            value={Math.min(100, Math.round((signedCount / signerCount) * 100))}
+            aria-label={t('Andamento das assinaturas')}
+            barColor={BRAND.primary}
+            backgroundColor={BRAND.surface}
+            withBorderRadius
+          />
+        ) : null}
+        {getStatusHints(record).map((hint) => (
+          <p key={hint.message.message} style={FIELD_STYLES.text}>
+            {t(hint.message, hint.values)}
+          </p>
+        ))}
+        {dates.map((date) => (
+          <p key={date} style={FIELD_STYLES.muted}>
+            {date}
+          </p>
+        ))}
       </div>
-      {signerCount > 0 ? (
-        <ProgressBar
-          value={Math.min(100, Math.round((signedCount / signerCount) * 100))}
-          ariaLabel={t('Andamento das assinaturas')}
-          barColor="var(--t-color-blue)"
-          backgroundColor="var(--t-background-tertiary)"
-          withBorderRadius
-        />
-      ) : null}
-      {getStatusHints(record).map((hint) => (
-        <p key={hint.message.message} style={FIELD_STYLES.text}>
-          {t(hint.message, hint.values)}
-        </p>
-      ))}
-      {dates.map((date) => (
-        <p key={date} style={FIELD_STYLES.muted}>
-          {date}
-        </p>
-      ))}
       <SignedDownloads files={record.signedDocument} />
       {signers.length > 0 ? (
         <ul style={FIELD_STYLES.list}>

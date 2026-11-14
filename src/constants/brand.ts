@@ -1,0 +1,20 @@
+// Assinafy v2 palette; host controls inherit scoped overrides from FIELD_STYLES.container.
+export const BRAND = {
+  page: '#F5F7FB',
+  surface: '#FFFFFF',
+  text: '#001122',
+  muted: '#384756',
+  primary: '#1452FF',
+  primaryHover: '#143CB9',
+  primaryActive: '#0F2F94',
+  primaryMuted: '#EBF1FF',
+  navy: '#0A1A4A',
+  sky: '#D8E5FF',
+  mint: '#CFF4E3',
+  neutral: '#EEF2F8',
+  border: '#DFE6EE',
+  inputBorder: '#768595',
+  danger: '#DC2626',
+  font: 'Inter, ui-sans-serif, system-ui, sans-serif',
+  shadow: '0 2px 8px 0 rgb(12 24 52 / .06)',
+} as const;

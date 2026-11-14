@@ -5,6 +5,11 @@ import { buildAppConnection } from 'src/assinafy-client/__tests__/build-app-conn
 import { toOAuthCredential } from 'src/assinafy-client/to-oauth-credential';
 
 describe('toOAuthCredential', () => {
+  it('refuses a custom connection instead of treating it as OAuth', () => {
+    expect(() => toOAuthCredential({ ...buildAppConnection(), providerType: 'custom', accessToken: null }))
+      .toThrow(expect.objectContaining({ code: 'PROVIDER_UNAVAILABLE' }));
+  });
+
   it('maps a user connection to a personal credential', () => {
     expect(toOAuthCredential(buildAppConnection({ id: 'c-1', scopes: ['documents:write'] }))).toEqual({
       kind: 'personal',

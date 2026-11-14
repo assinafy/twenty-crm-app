@@ -10,7 +10,7 @@ import { ASSINAFY_CONNECTION_PROVIDER_NAME } from 'src/constants/assinafy';
 
 // getConnection refuses a connection the app flagged (e.g. for a missing scope) although its grant may still be
 // valid; the connection list still carries that connection's token.
-const readAccessToken = async (connectedAccountId: string): Promise<string> => {
+const readAccessToken = async (connectedAccountId: string): Promise<string | null> => {
   try {
     return (await getConnection(connectedAccountId)).accessToken;
   } catch (error) {
